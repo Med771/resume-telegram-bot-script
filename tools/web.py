@@ -27,8 +27,6 @@ class WebTools:
                     json={"telegramUserId": user_id},
                     cookies=WebConfig.COOKIE
             ) as response:
-                print(WebConfig.SET_STUD_URL.format(id=_id) if is_stud else WebConfig.SET_REC_URL.format(id=_id))
-
                 if response.status == 200:
                     return 2
                 if response.status == 400:
@@ -48,11 +46,9 @@ class WebTools:
         async with aiohttp.ClientSession() as session:
             async with session.get(
                 url=WebConfig.GET_STUD_INFO_URL.format(id=user_id),
+                headers=WebConfig.HEADERS,
                 cookies=WebConfig.COOKIE
             ) as response:
-
-                print(WebConfig.GET_STUD_INFO_URL.format(id=user_id))
-                print(await response.text())
 
                 if response.status == 200:
                     return True
@@ -69,6 +65,7 @@ class WebTools:
         async with aiohttp.ClientSession() as session:
             async with session.get(
                 url=WebConfig.GET_REC_INFO_URL.format(id=user_id),
+                headers=WebConfig.HEADERS,
                 cookies=WebConfig.COOKIE
             ) as response:
 
@@ -78,3 +75,29 @@ class WebTools:
                 print("Get rec info URL status:", response.status)
 
         return False
+
+    @classmethod
+    @TelegramDecorator.log_call()
+    async def get_offers(cls, is_stud: bool, chat_id: str) -> dict:
+        _ = await cls.login()
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                url=WebConfig.GET_REQ_URL.format(id=chat_id),
+                headers=WebConfig.HEADERS,
+                cookies=WebConfig.COOKIE,
+                json={
+                    "isStud": is_stud,
+                    "results": ["CREATION", "WAITING", "EXPECTATION"]
+                }
+            ) as response:
+
+                if response.status == 200:
+                    return await response.json()
+
+                print("Get offers URL status:", response.status)
+
+        return {}
+
+
+

@@ -1,0 +1,14 @@
+.venv
+.idea
+
+*/__pycache__
+
+test.py
+
+info.log
+warn.log
+error.log
+crit.log
+data.log
+
+README.md

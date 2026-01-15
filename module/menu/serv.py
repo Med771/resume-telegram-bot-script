@@ -1,21 +1,44 @@
 from aiogram.types import Message
 
 from addons.decorator import TelegramDecorator
-from addons.lexicon import MenuLexicon
+from addons.lexicon import MenuLexicon, SyncLexicon
+from addons.markup import MenuMarkup
 
-from tools.backend import BackendTools
+from tools.web import WebTools
 
 
 class MenuService:
     @classmethod
     @TelegramDecorator.log_call()
     async def start_msg(cls, message: Message):
-        args = message.text.split()[1]
+        _arr = message.text.split()
 
-        if args:
-            res = await BackendTools.referral_link(_id=args, user_id=str(message.from_user.id))
+        if len(_arr) == 2:
+            args = message.text.split()[1]
+            is_stud, _id = args.split("_")
 
-            if res:
-                await message.answer(text=MenuLexicon.SYNC_MSG)
+            print(_id)
 
-        await message.answer(text=MenuLexicon.START_MSG)
+            res = await WebTools.referral_link(is_stud=int(is_stud) < 5000, _id=_id, user_id=str(message.from_user.id))
+
+            markup = MenuMarkup.offers_markup if int(is_stud) < 5000 else MenuMarkup.query_markup
+
+            if res == 2:
+                await message.answer(text=SyncLexicon.SYNC_SUCCESS_MSG)
+            elif res == 1:
+                await message.answer(text=SyncLexicon.SYNC_EXISTS_MSG)
+            else:
+                await message.answer(text=SyncLexicon.SYNC_FAILURE_MSG)
+
+                markup = None
+        else:
+            if await WebTools.get_stud_by_id(user_id=str(message.from_user.id)):
+                markup = MenuMarkup.offers_markup
+            elif await WebTools.get_stud_by_id(user_id=str(message.from_user.id)):
+                markup = MenuMarkup.query_markup
+            else:
+                await message.answer(text=SyncLexicon.SYNC_FAILURE_MSG)
+
+                markup = None
+
+        await message.answer(text=MenuLexicon.START_MSG, reply_markup=markup)

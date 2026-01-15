@@ -1,4 +1,4 @@
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
 
 from addons.lexicon import OffersLexicon, QueryLexicon
 
@@ -8,4 +8,4 @@ QUERY_BTN = InlineKeyboardButton(text=QueryLexicon.QUERY_BTN_TXT, callback_data=
 
 class MenuMarkup:
     offers_markup = InlineKeyboardMarkup(inline_keyboard=[[OFFERS_BTN]])
-    query_markup = InlineKeyboardMarkup(inline_keyboard=[[QUERY_BTN]])
+    query_markup = ReplyKeyboardRemove() # InlineKeyboardMarkup(inline_keyboard=[[QUERY_BTN]])

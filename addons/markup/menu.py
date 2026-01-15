@@ -1,14 +1,11 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from addons.lexicon import MenuLexicon, OffersLexicon, QueryLexicon
+from addons.lexicon import OffersLexicon, QueryLexicon
 
-BACK_BTN = KeyboardButton(text=MenuLexicon.BACK_BTN_TXT)
-OFFERS_BTN = KeyboardButton(text=OffersLexicon.OFFERS_BTN_TXT)
-QUERY_BTN = KeyboardButton(text=QueryLexicon.QUERY_BTN_TXT)
+OFFERS_BTN = InlineKeyboardButton(text=OffersLexicon.OFFERS_BTN_TXT, callback_data=OffersLexicon.OFFERS_BTN_CL)
+QUERY_BTN = InlineKeyboardButton(text=QueryLexicon.QUERY_BTN_TXT, callback_data=QueryLexicon.QUERY_BTN_CL)
 
 
 class MenuMarkup:
-    back_markup = ReplyKeyboardMarkup(keyboard=[[BACK_BTN]], resize_keyboard=True)
-
-    offers_markup = ReplyKeyboardMarkup(keyboard=[[OFFERS_BTN]], resize_keyboard=True)
-    query_markup = ReplyKeyboardMarkup(keyboard=[[QUERY_BTN]], resize_keyboard=True)
+    offers_markup = InlineKeyboardMarkup(inline_keyboard=[[OFFERS_BTN]])
+    query_markup = InlineKeyboardMarkup(inline_keyboard=[[QUERY_BTN]])

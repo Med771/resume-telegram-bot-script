@@ -11,12 +11,7 @@ class WebTools:
     async def login(cls):
         async with aiohttp.ClientSession() as session:
             async with session.post(WebConfig.LOGIN_URL, json=WebConfig.LOGIN_DATA, headers=WebConfig.HEADERS) as response:
-                print(WebConfig.LOGIN_URL)
-                print(WebConfig.LOGIN_DATA)
-                print(WebConfig.HEADERS)
-
                 print("Login status:", response.status)
-                print("Login data:", await response.text())
 
                 WebConfig.COOKIE = response.cookies
 
@@ -55,6 +50,9 @@ class WebTools:
                 url=WebConfig.GET_STUD_INFO_URL.format(id=user_id),
                 cookies=WebConfig.COOKIE
             ) as response:
+
+                print(WebConfig.GET_STUD_INFO_URL.format(id=user_id))
+                print(await response.text())
 
                 if response.status == 200:
                     return True

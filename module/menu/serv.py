@@ -1,11 +1,24 @@
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, ReplyKeyboardRemove
+from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery
 
 from addons.decorator import TelegramDecorator
 from addons.lexicon import MenuLexicon, SyncLexicon
 from addons.markup import MenuMarkup
+from tools.admin import AdminTools
 
 from tools.web import WebTools
+
+async def menu(message: Message, state: FSMContext):
+    if await WebTools.get_stud_by_id(user_id=str(message.chat.id)):
+        await state.update_data(u=1)
+
+        await message.answer(text=MenuLexicon.STUDENT_START_MSG, reply_markup=MenuMarkup.offers_markup)
+    elif await WebTools.get_rec_by_id(user_id=str(message.chat.id)):
+        await state.update_data(u=2)
+
+        await message.answer(text=MenuLexicon.EMPLOYER_START_MSG, reply_markup=MenuMarkup.query_markup)
+    else:
+        await message.answer(text=MenuLexicon.NO_SYNC_START_MSG, reply_markup=ReplyKeyboardRemove())
 
 
 class MenuService:
@@ -22,30 +35,28 @@ class MenuService:
 
             res = await WebTools.referral_link(is_stud=int(is_stud) < 5000, _id=_id, user_id=str(message.from_user.id))
 
-            markup = MenuMarkup.offers_markup if int(is_stud) < 5000 else MenuMarkup.query_markup
+            if res:
+                if res == 2:
+                    await message.answer(text=SyncLexicon.SYNC_SUCCESS_MSG)
+                else:
+                    await message.answer(text=SyncLexicon.SYNC_EXISTS_MSG)
 
-            await state.update_data(u=1 if int(is_stud) < 5000 else 2)
+                if int(is_stud) < 5000:
+                    await state.update_data(u=1)
 
-            if res == 2:
-                await message.answer(text=SyncLexicon.SYNC_SUCCESS_MSG)
-            elif res == 1:
-                await message.answer(text=SyncLexicon.SYNC_EXISTS_MSG)
+                    await message.answer(text=MenuLexicon.STUDENT_START_MSG, reply_markup=MenuMarkup.offers_markup)
+                else:
+                    await state.update_data(u=2)
+
+                    await message.answer(text=MenuLexicon.EMPLOYER_START_MSG, reply_markup=MenuMarkup.query_markup)
             else:
-                await message.answer(text=SyncLexicon.SYNC_FAILURE_MSG)
-
-                markup = ReplyKeyboardRemove()
+                await message.answer(text=MenuLexicon.NO_SYNC_START_MSG, reply_markup=ReplyKeyboardRemove())
         else:
-            if await WebTools.get_stud_by_id(user_id=str(message.from_user.id)):
-                markup = MenuMarkup.offers_markup
+            await menu(message, state)
 
-                await state.update_data(u=1)
-            elif await WebTools.get_rec_by_id(user_id=str(message.from_user.id)):
-                markup = MenuMarkup.query_markup
+    @classmethod
+    @TelegramDecorator.log_call()
+    async def back_btn(cls, callback: CallbackQuery, state: FSMContext):
+        await AdminTools.delete_msg(message=callback.message)
 
-                await state.update_data(u=2)
-            else:
-                await message.answer(text=SyncLexicon.SYNC_FAILURE_MSG)
-
-                markup = ReplyKeyboardRemove()
-
-        await message.answer(text=MenuLexicon.START_MSG, reply_markup=markup)
+        await menu(message=callback.message, state=state)

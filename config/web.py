@@ -17,6 +17,7 @@ class WebConfig:
     GET_REC_INFO_URL: str = os.getenv("GET_REC_INFO_URL", "")
 
     GET_REQ_URL: str = os.getenv("GET_REQ_URL", "")
+    GET_OFFER_URL: str = os.getenv("GET_OFFER_URL", "")
 
     SET_STATUS_URL: str = os.getenv("SET_STATUS_URL", "")
 
@@ -43,6 +44,9 @@ class WebConfig:
 
     if not GET_REQ_URL:
         exit("Get REQ URL not set environment variable")
+
+    if not GET_OFFER_URL:
+        exit("Get OFFER URL not set environment variable")
 
     if not SET_STATUS_URL:
         exit("Set status URL not set environment variable")

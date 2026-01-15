@@ -13,3 +13,11 @@ class OffersFilter:
         is_state_data = await state.get_data()
 
         return is_btn and is_state_data.get("u", 0) == 1
+
+    @classmethod
+    @TelegramDecorator.log_call()
+    async def offer_btn(cls, callback: CallbackQuery, state: FSMContext = None):
+        is_btn = callback.data.startswith(OffersLexicon.OFFER_BTN_CL)
+        is_state_data = await state.get_data()
+
+        return is_btn and is_state_data.get("u", 0) == 1

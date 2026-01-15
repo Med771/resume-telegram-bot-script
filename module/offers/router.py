@@ -11,3 +11,8 @@ offers_router = Router(name=__name__)
 @offers_router.callback_query(OffersFilter.offers_btn)
 async def offers_btn(callback: CallbackQuery, state: FSMContext):
     await OffersService.offers_btn(callback=callback, state=state)
+
+
+@offers_router.callback_query(OffersFilter.offer_btn)
+async def offers_btn(callback: CallbackQuery, state: FSMContext):
+    await OffersService.offer_btn(callback=callback, state=state)

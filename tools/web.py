@@ -11,8 +11,6 @@ class WebTools:
     async def login(cls):
         async with aiohttp.ClientSession() as session:
             async with session.post(WebConfig.LOGIN_URL, json=WebConfig.LOGIN_DATA, headers=WebConfig.HEADERS) as response:
-                print("Login status:", response.status)
-
                 WebConfig.COOKIE = response.cookies
 
     @classmethod
@@ -117,3 +115,22 @@ class WebTools:
                     return True
 
         return False
+
+    @classmethod
+    @TelegramDecorator.log_call()
+    async def get_offer(cls, _id: int) -> dict:
+        _ = await cls.login()
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                url=WebConfig.GET_OFFER_URL.format(id=_id),
+                headers=WebConfig.HEADERS,
+                cookies=WebConfig.COOKIE,
+            ) as response:
+
+                if response.status == 200:
+                    return await response.json()
+
+                print("Get offer URL status:", response.status)
+
+        return {}

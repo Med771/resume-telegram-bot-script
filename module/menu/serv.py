@@ -1,4 +1,4 @@
-from aiogram.types import Message
+from aiogram.types import Message, ReplyKeyboardRemove
 
 from addons.decorator import TelegramDecorator
 from addons.lexicon import MenuLexicon, SyncLexicon
@@ -17,8 +17,6 @@ class MenuService:
             args = message.text.split()[1]
             is_stud, _id = args.split("_")
 
-            print(_id)
-
             res = await WebTools.referral_link(is_stud=int(is_stud) < 5000, _id=_id, user_id=str(message.from_user.id))
 
             markup = MenuMarkup.offers_markup if int(is_stud) < 5000 else MenuMarkup.query_markup
@@ -30,7 +28,7 @@ class MenuService:
             else:
                 await message.answer(text=SyncLexicon.SYNC_FAILURE_MSG)
 
-                markup = None
+                markup = ReplyKeyboardRemove()
         else:
             if await WebTools.get_stud_by_id(user_id=str(message.from_user.id)):
                 markup = MenuMarkup.offers_markup
@@ -39,6 +37,6 @@ class MenuService:
             else:
                 await message.answer(text=SyncLexicon.SYNC_FAILURE_MSG)
 
-                markup = None
+                markup = ReplyKeyboardRemove()
 
         await message.answer(text=MenuLexicon.START_MSG, reply_markup=markup)

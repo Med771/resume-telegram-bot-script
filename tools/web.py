@@ -100,4 +100,20 @@ class WebTools:
         return {}
 
 
+    @classmethod
+    @TelegramDecorator.log_call()
+    async def set_status(cls, _id: int, status: str) -> bool:
+        _ = await cls.login()
 
+        async with aiohttp.ClientSession() as session:
+            async with session.put(
+                url=WebConfig.SET_STATUS_URL.format(id=_id),
+                headers=WebConfig.HEADERS,
+                cookies=WebConfig.COOKIE,
+                json={"resultEnum": status}
+            ) as response:
+
+                if response.status == 200:
+                    return True
+
+        return False

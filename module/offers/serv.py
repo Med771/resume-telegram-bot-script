@@ -25,3 +25,10 @@ class OffersService:
             text=OffersLexicon.OFFERS_MSG,
             reply_markup=OffersMarkup.markup_offers(offers=offers)
         )
+
+    @classmethod
+    @TelegramDecorator.log_call()
+    async def offer_btn(cls, callback: CallbackQuery, state: FSMContext):
+        await AdminTools.delete_msg(message=callback.message)
+
+

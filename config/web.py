@@ -18,6 +18,8 @@ class WebConfig:
 
     GET_REQ_URL: str = os.getenv("GET_REQ_URL", "")
 
+    SET_STATUS_URL: str = os.getenv("SET_STATUS_URL", "")
+
     USERNAME_LOGIN: str = os.getenv("USERNAME_LOGIN", "")
     PASSWORD: str = os.getenv("PASSWORD", "")
 
@@ -41,6 +43,9 @@ class WebConfig:
 
     if not GET_REQ_URL:
         exit("Get REQ URL not set environment variable")
+
+    if not SET_STATUS_URL:
+        exit("Set status URL not set environment variable")
 
     if not USERNAME_LOGIN:
         exit("Username login not set environment variable")

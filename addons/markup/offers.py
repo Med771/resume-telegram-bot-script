@@ -8,11 +8,24 @@ BACK_BTN = InlineKeyboardButton(text=MenuLexicon.BACK_BTN_TXT, callback_data=Men
 class OffersMarkup:
     @classmethod
     def markup_offers(cls, offers: list[tuple[int, str]]) -> InlineKeyboardMarkup:
-        keyboard = [[]]
+        keyboard = []
 
         for _id, name in offers:
             keyboard.append([InlineKeyboardButton(text=name, callback_data=OffersLexicon.OFFER_BTN_CL + str(_id))])
 
+        keyboard.append([BACK_BTN])
+
+        return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+    @classmethod
+    def new_offer(cls, _id: int) -> InlineKeyboardMarkup:
+        keyboard = []
+
+        NEW_OFFER_YES_BTN = InlineKeyboardButton(text=OffersLexicon.NEW_OFFERS_YES_BTN_TXT, callback_data=OffersLexicon.NEW_OFFERS_YES_BTN_CL + str(_id))
+        NEW_OFFER_NO_BTN = InlineKeyboardButton(text=OffersLexicon.NEW_OFFERS_NO_BTN_TXT, callback_data=OffersLexicon.NEW_OFFERS_NO_BTN_CL + str(_id))
+
+        keyboard.append(NEW_OFFER_YES_BTN)
+        keyboard.append(NEW_OFFER_NO_BTN)
         keyboard.append([BACK_BTN])
 
         return InlineKeyboardMarkup(inline_keyboard=keyboard)

@@ -5,10 +5,14 @@ class OffersLexicon:
     NEW_OFFERS_YES_BTN_TXT: str = "💬 Обсудить"
     NEW_OFFERS_NO_BTN_TXT: str = "❌ Отказать"
 
-
+    NEW_OFFERS_YES_BTN_CL: str = "NEW_OFFER_YES_"
+    NEW_OFFERS_NO_BTN_CL: str = "NEW_OFFER_NO_"
 
     OFFERS_SUCCESS_BTN_TXT: str = "✅ договорились о ТУ"
     OFFERS_FAILURE_BTN_TXT: str = "❌ Не пришли к согласию"
+
+    OFFERS_SUCCESS_BTN_CL: str = "OFFER_SUCCESS_"
+    OFFERS_FAILURE_BTN_CL: str = "OFFER_FAILURE_"
 
     OFFERS_MSG: str = (
         "📨 <b>Активные офферы</b>\n\n"

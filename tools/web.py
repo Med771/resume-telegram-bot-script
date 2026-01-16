@@ -76,7 +76,10 @@ class WebTools:
 
     @classmethod
     @TelegramDecorator.log_call()
-    async def get_offers(cls, is_stud: bool, chat_id: str) -> dict:
+    async def get_offers(cls, is_stud: bool, chat_id: str, results=None) -> dict:
+        if results is None:
+            results = ["SYNC", "WAITING", "EXPECTATION"]
+
         _ = await cls.login()
 
         async with aiohttp.ClientSession() as session:
@@ -86,7 +89,7 @@ class WebTools:
                 cookies=WebConfig.COOKIE,
                 json={
                     "isStud": is_stud,
-                    "results": ["CREATION", "WAITING", "EXPECTATION"]
+                    "results": results
                 }
             ) as response:
 

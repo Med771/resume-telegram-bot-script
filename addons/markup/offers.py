@@ -27,7 +27,7 @@ class OffersMarkup:
 
         keyboard.append([NEW_OFFER_YES_BTN])
         keyboard.append([NEW_OFFER_NO_BTN])
-        keyboard.append([BACK_BTN])
+        # keyboard.append([BACK_BTN])
 
         return InlineKeyboardMarkup(inline_keyboard=keyboard)
 

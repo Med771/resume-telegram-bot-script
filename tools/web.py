@@ -169,7 +169,7 @@ class WebTools:
             json["newStatuses"].append({"id": res[0], "result": res[1]})
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(
+            async with session.put(
                 url=WebConfig.BATCH_UPDATE_STATUS_URL,
                 headers=WebConfig.HEADERS,
                 cookies=WebConfig.COOKIE,

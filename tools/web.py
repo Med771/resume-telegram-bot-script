@@ -158,3 +158,26 @@ class WebTools:
                 print("Get offers URL status:", response.status)
 
         return {}
+
+    @classmethod
+    async def batch_update(cls, results: list[tuple[int, str]]):
+        _ = await cls.login()
+
+        json = {"newStatuses": []}
+
+        for res in results:
+            json["newStatuses"].append({"id": res[0], "result": res[1]})
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                url=WebConfig.BATCH_UPDATE_STATUS_URL,
+                headers=WebConfig.HEADERS,
+                cookies=WebConfig.COOKIE,
+                json=json) as response:
+
+                if response.status == 200:
+                    return await response.json()
+
+                print("Batch update URL status:", response.status)
+
+        return None

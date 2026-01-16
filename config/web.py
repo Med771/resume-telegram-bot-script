@@ -22,6 +22,7 @@ class WebConfig:
     SET_STATUS_URL: str = os.getenv("SET_STATUS_URL", "")
 
     OFFERS_URL: str = os.getenv("OFFERS_URL", "")
+    BATCH_UPDATE_STATUS_URL: str = os.getenv("BATCH_UPDATE_STATUS_URL", "")
 
     USERNAME_LOGIN: str = os.getenv("USERNAME_LOGIN", "")
     PASSWORD: str = os.getenv("PASSWORD", "")
@@ -55,6 +56,9 @@ class WebConfig:
 
     if not OFFERS_URL:
         exit("Offers URL not set environment variable")
+
+    if not BATCH_UPDATE_STATUS_URL:
+        exit("Batch update status URL not set environment variable")
 
     if not USERNAME_LOGIN:
         exit("Username login not set environment variable")

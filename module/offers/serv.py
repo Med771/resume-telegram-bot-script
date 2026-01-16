@@ -41,7 +41,7 @@ class OffersService:
         recruiter_name = offer.get("recruiterRes", {}).get("fullName", "")
         speciality = offer.get("studentRes", {}).get("speciality", "")
 
-        if offer.get("result", "") == "CREATION":
+        if offer.get("result", "") == "SYNC":
             await callback.message.answer(
                 text=OffersLexicon.OFFER_TO_STUDENT_MSG.format(
                     company_name=company_name,
@@ -49,15 +49,6 @@ class OffersService:
                     speciality=speciality
                 ),
                 reply_markup=OffersMarkup.new_offer(_id=_id)
-            )
-        elif offer.get("result", "") == "":
-            await callback.message.answer(
-                text=OffersLexicon.OFFER_WAIT_RECRUITER_MSG.format(
-                    company_name=company_name,
-                    recruiter_name=recruiter_name,
-                    speciality=speciality
-                ),
-                reply_markup=OffersMarkup.wait_offer(_id=_id)
             )
         elif offer.get("result", "") == "EXPECTATION":
             await callback.message.answer(
@@ -73,3 +64,15 @@ class OffersService:
                 text=MenuLexicon.NO_SYNC_START_MSG,
                 reply_markup=MenuMarkup.back_markup
             )
+
+    # @classmethod
+    # @TelegramDecorator.log_call()
+    # async def yes_new_offer_btn(cls, callback: CallbackQuery, state: FSMContext):
+    #     await AdminTools.delete_msg(message=callback.message)
+    #
+    #     call_data = callback.data.split("_")
+    #     _id = int(call_data[-1])
+    #
+    #     await callback.message.answer(
+    #         text=OffersLexicon.
+    #     )

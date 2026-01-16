@@ -9,4 +9,4 @@ OFFERS_BTN = InlineKeyboardButton(text=OffersLexicon.OFFERS_BTN_TXT, callback_da
 class MenuMarkup:
     back_markup = InlineKeyboardMarkup(inline_keyboard=[[BACK_BTN]])
 
-    offers_markup = InlineKeyboardMarkup(inline_keyboard=[[OFFERS_BTN]])
+    offers_markup = ReplyKeyboardRemove() # InlineKeyboardMarkup(inline_keyboard=[[OFFERS_BTN]])

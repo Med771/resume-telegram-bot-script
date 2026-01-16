@@ -21,6 +21,8 @@ class WebConfig:
 
     SET_STATUS_URL: str = os.getenv("SET_STATUS_URL", "")
 
+    OFFERS_URL: str = os.getenv("OFFERS_URL", "")
+
     USERNAME_LOGIN: str = os.getenv("USERNAME_LOGIN", "")
     PASSWORD: str = os.getenv("PASSWORD", "")
 
@@ -50,6 +52,9 @@ class WebConfig:
 
     if not SET_STATUS_URL:
         exit("Set status URL not set environment variable")
+
+    if not OFFERS_URL:
+        exit("Offers URL not set environment variable")
 
     if not USERNAME_LOGIN:
         exit("Username login not set environment variable")

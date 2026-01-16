@@ -14,7 +14,7 @@ class OffersService:
     async def offers_btn(cls, callback: CallbackQuery, state: FSMContext):
         await AdminTools.delete_msg(message=callback.message)
 
-        data = await WebTools.get_offers(is_stud=True, chat_id=str(callback.message.chat.id))
+        data = await WebTools.get_offers_by_id(is_stud=True, chat_id=str(callback.message.chat.id))
 
         offers = []
 

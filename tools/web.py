@@ -76,7 +76,7 @@ class WebTools:
 
     @classmethod
     @TelegramDecorator.log_call()
-    async def get_offers(cls, is_stud: bool, chat_id: str, results=None) -> dict:
+    async def get_offers_by_id(cls, is_stud: bool, chat_id: str, results=None) -> dict:
         if results is None:
             results = ["SYNC", "WAITING", "EXPECTATION"]
 
@@ -135,5 +135,26 @@ class WebTools:
                     return await response.json()
 
                 print("Get offer URL status:", response.status)
+
+        return {}
+
+    @classmethod
+    async def get_offers(cls, results=None) -> dict:
+        if results is None:
+            results = ["SYNC", "WAITING", "EXPECTATION"]
+
+        _ = await cls.login()
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                url=WebConfig.OFFERS_URL,
+                headers=WebConfig.HEADERS,
+                cookies=WebConfig.COOKIE,
+                json={"results": results}) as response:
+
+                if response.status == 200:
+                    return await response.json()
+
+                print("Get offers URL status:", response.status)
 
         return {}

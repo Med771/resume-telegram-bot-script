@@ -1,14 +1,17 @@
 import asyncio
 
-from config import TelegramConfig
+from apscheduler.triggers.interval import IntervalTrigger
+
+from config import TelegramConfig, SchedulerConfig
 
 from module import routers
 
 from tools.logger import LoggerTools
+from tools.notification import NotificationTools
 
 BOT = TelegramConfig.BOT
 DISPATCHER = TelegramConfig.DISPATCHER
-
+SCHEDULER = SchedulerConfig.SCHEDULER
 
 logger = LoggerTools.get_logger(name=__name__, info=True, error=True, critical=True)
 
@@ -16,6 +19,14 @@ logger = LoggerTools.get_logger(name=__name__, info=True, error=True, critical=T
 async def main():
     try:
         print("COMPILING")
+
+        SCHEDULER.add_job(
+            func=NotificationTools.check_new_offers,
+            trigger=IntervalTrigger(seconds=20),
+            misfire_grace_time=60
+        )
+
+        SCHEDULER.start()
 
         DISPATCHER.include_routers(*routers)
 
@@ -28,6 +39,8 @@ async def main():
     except Exception as ex:
         logger.critical(f"Unexpected error: {ex}", exc_info=True)
     finally:
+        SCHEDULER.shutdown()
+
         logger.info("SESSION CLOSE")
         print("SESSION CLOSE")
 

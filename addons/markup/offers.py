@@ -40,6 +40,6 @@ class OffersMarkup:
 
         keyboard.append([OFFER_SUCCESS_BTN])
         keyboard.append([OFFER_FAILURE_BTN])
-        keyboard.append([BACK_BTN])
+        # keyboard.append([BACK_BTN])
 
         return InlineKeyboardMarkup(inline_keyboard=keyboard)

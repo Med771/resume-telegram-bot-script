@@ -1,4 +1,4 @@
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
 
 from addons.lexicon import OffersLexicon, MenuLexicon
@@ -62,7 +62,7 @@ class OffersService:
         else:
             await callback.message.answer(
                 text=MenuLexicon.NO_SYNC_START_MSG,
-                reply_markup=MenuMarkup.back_markup
+                reply_markup=ReplyKeyboardRemove()
             )
 
     # @classmethod

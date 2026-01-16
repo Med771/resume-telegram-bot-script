@@ -16,7 +16,7 @@ async def menu(message: Message, state: FSMContext):
     elif await WebTools.get_rec_by_id(user_id=str(message.chat.id)):
         await state.update_data(u=2)
 
-        await message.answer(text=MenuLexicon.EMPLOYER_START_MSG, reply_markup=MenuMarkup.query_markup)
+        await message.answer(text=MenuLexicon.EMPLOYER_START_MSG, reply_markup=ReplyKeyboardRemove())
     else:
         await message.answer(text=MenuLexicon.NO_SYNC_START_MSG, reply_markup=ReplyKeyboardRemove())
 
@@ -48,7 +48,7 @@ class MenuService:
                 else:
                     await state.update_data(u=2)
 
-                    await message.answer(text=MenuLexicon.EMPLOYER_START_MSG, reply_markup=MenuMarkup.query_markup)
+                    await message.answer(text=MenuLexicon.EMPLOYER_START_MSG, reply_markup=ReplyKeyboardRemove())
             else:
                 await message.answer(text=MenuLexicon.NO_SYNC_START_MSG, reply_markup=ReplyKeyboardRemove())
         else:

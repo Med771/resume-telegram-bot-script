@@ -37,8 +37,8 @@ class OffersMarkup:
     def active_offer(cls, _id: int) -> InlineKeyboardMarkup:
         keyboard = []
 
-        OFFER_SUCCESS_BTN = InlineKeyboardButton(text=OffersLexicon.OFFERS_SUCCESS_BTN_TXT, callback_data=OffersLexicon.OFFERS_SUCCESS_BTN_CL)
-        OFFER_FAILURE_BTN = InlineKeyboardButton(text=OffersLexicon.OFFERS_FAILURE_BTN_TXT, callback_data=OffersLexicon.OFFERS_FAILURE_BTN_CL)
+        OFFER_SUCCESS_BTN = InlineKeyboardButton(text=OffersLexicon.OFFERS_SUCCESS_BTN_TXT, callback_data=OffersLexicon.OFFERS_SUCCESS_BTN_CL + str(_id))
+        OFFER_FAILURE_BTN = InlineKeyboardButton(text=OffersLexicon.OFFERS_FAILURE_BTN_TXT, callback_data=OffersLexicon.OFFERS_FAILURE_BTN_CL + str(_id))
 
         keyboard.append([OFFER_SUCCESS_BTN])
         keyboard.append([OFFER_FAILURE_BTN])
@@ -47,11 +47,14 @@ class OffersMarkup:
         return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
     @classmethod
-    def chat_offer(cls, url: str) -> InlineKeyboardMarkup:
+    def chat_offer(cls, url: str, is_stud: bool = False) -> InlineKeyboardMarkup:
         keyboard = []
 
         CHAT_BTN = InlineKeyboardButton(text=OffersLexicon.CHAT_BTN_TXT, url=url)
 
         keyboard.append([CHAT_BTN])
+
+        if is_stud:
+            keyboard.append([MENU_BTN])
 
         return InlineKeyboardMarkup(inline_keyboard=keyboard)

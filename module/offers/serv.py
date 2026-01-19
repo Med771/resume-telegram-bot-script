@@ -88,6 +88,8 @@ class OffersService:
 
             return
 
+        await WebTools.set_status(_id=_id, status="EXPECTATION")
+
         company_name = _res.get("recruiterRes", {}).get("companyName", "")
         recruiter_name = _res.get("recruiterRes", {}).get("fullName", "")
         recruiter_chat_id = _res.get("recruiterRes", {}).get("chatId", "")
@@ -114,8 +116,6 @@ class OffersService:
             ),
             reply_markup=OffersMarkup.chat_offer(url=url)
         )
-
-        await WebTools.set_status(_id=_id, status="EXPECTATION")
 
     @classmethod
     @TelegramDecorator.log_call()

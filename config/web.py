@@ -24,6 +24,8 @@ class WebConfig:
     OFFERS_URL: str = os.getenv("OFFERS_URL", "")
     BATCH_UPDATE_STATUS_URL: str = os.getenv("BATCH_UPDATE_STATUS_URL", "")
 
+    CREATE_CHAT_URL: str = os.getenv("CREATE_CHAT_URL", "")
+
     USERNAME_LOGIN: str = os.getenv("USERNAME_LOGIN", "")
     PASSWORD: str = os.getenv("PASSWORD", "")
 
@@ -59,6 +61,9 @@ class WebConfig:
 
     if not BATCH_UPDATE_STATUS_URL:
         exit("Batch update status URL not set environment variable")
+
+    if not CREATE_CHAT_URL:
+        exit("Create chat URL not set environment variable")
 
     if not USERNAME_LOGIN:
         exit("Username login not set environment variable")

@@ -181,3 +181,21 @@ class WebTools:
                 print("Batch update URL status:", response.status)
 
         return None
+
+    @classmethod
+    async def create_chat(cls, _id: int) -> dict:
+        _ = await cls.login()
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                url=WebConfig.CREATE_CHAT_URL.format(id=_id),
+                headers=WebConfig.HEADERS,
+                cookies=WebConfig.COOKIE
+            ) as response:
+
+                if response.status == 200:
+                    return await response.json()
+
+                print("Create chat URL status:", response.status)
+
+        return {}

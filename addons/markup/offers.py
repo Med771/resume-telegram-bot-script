@@ -7,6 +7,8 @@ BACK_BTN = InlineKeyboardButton(text=OffersLexicon.BACK_TO_OFFERS_BTN_TXT, callb
 
 
 class OffersMarkup:
+    back_markup = InlineKeyboardMarkup(inline_keyboard=[[MENU_BTN]])
+
     @classmethod
     def markup_offers(cls, offers: list[tuple[int, str]]) -> InlineKeyboardMarkup:
         keyboard = []
@@ -41,5 +43,15 @@ class OffersMarkup:
         keyboard.append([OFFER_SUCCESS_BTN])
         keyboard.append([OFFER_FAILURE_BTN])
         # keyboard.append([BACK_BTN])
+
+        return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+    @classmethod
+    def chat_offer(cls, url: str) -> InlineKeyboardMarkup:
+        keyboard = []
+
+        CHAT_BTN = InlineKeyboardButton(text=OffersLexicon.CHAT_BTN_TXT, url=url)
+
+        keyboard.append([CHAT_BTN])
 
         return InlineKeyboardMarkup(inline_keyboard=keyboard)

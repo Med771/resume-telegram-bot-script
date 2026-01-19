@@ -59,4 +59,11 @@ class MenuService:
     async def back_btn(cls, callback: CallbackQuery, state: FSMContext):
         await AdminTools.delete_msg(message=callback.message)
 
+        data = await state.get_data()
+
+        await state.clear()
+
+        if "u" in data:
+            await state.update_data(u=data["u"])
+
         await menu(message=callback.message, state=state)

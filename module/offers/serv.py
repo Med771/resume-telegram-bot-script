@@ -1,11 +1,17 @@
-from aiogram.types import CallbackQuery, ReplyKeyboardRemove
+from aiogram.types import CallbackQuery, ReplyKeyboardRemove, Message
 from aiogram.fsm.context import FSMContext
 
-from addons.lexicon import OffersLexicon, MenuLexicon
+from addons.lexicon import OffersLexicon, MenuLexicon, ErrorLexicon
 from addons.decorator import TelegramDecorator
-from addons.markup import OffersMarkup, MenuMarkup
+from addons.markup import OffersMarkup
+from addons.state.offer import OfferState
+
 from tools.admin import AdminTools
 from tools.web import WebTools
+
+from config import TelegramConfig
+
+bot = TelegramConfig.BOT
 
 
 class OffersService:
@@ -32,7 +38,6 @@ class OffersService:
         await AdminTools.delete_msg(message=callback.message)
 
         call_data = callback.data.split("_")
-
         _id = int(call_data[-1])
 
         offer = await WebTools.get_offer(_id=_id)
@@ -65,14 +70,93 @@ class OffersService:
                 reply_markup=ReplyKeyboardRemove()
             )
 
-    # @classmethod
-    # @TelegramDecorator.log_call()
-    # async def yes_new_offer_btn(cls, callback: CallbackQuery, state: FSMContext):
-    #     await AdminTools.delete_msg(message=callback.message)
-    #
-    #     call_data = callback.data.split("_")
-    #     _id = int(call_data[-1])
-    #
-    #     await callback.message.answer(
-    #         text=OffersLexicon.
-    #     )
+    @classmethod
+    @TelegramDecorator.log_call()
+    async def yes_new_offer_btn(cls, callback: CallbackQuery, state: FSMContext):
+        await AdminTools.edit_reply(message=callback.message)
+
+        call_data = callback.data.split("_")
+        _id = int(call_data[-1])
+
+        _res = await WebTools.create_chat(_id=_id)
+
+        if not _res:
+            await callback.message.answer(
+                text=ErrorLexicon.CHAT_CREATE_ERROR_MSG,
+                reply_markup=OffersMarkup.back_markup
+            )
+
+            return
+
+        company_name = _res.get("recruiterRes", {}).get("companyName", "")
+        recruiter_name = _res.get("recruiterRes", {}).get("fullName", "")
+        recruiter_chat_id = _res.get("recruiterRes", {}).get("chatId", "")
+
+        student_full_name = _res.get("studentRes", {}).get("fullName", "")
+        student_speciality = _res.get("studentRes", {}).get("speciality", "")
+
+        url = _res.get("chatUrl", "")
+
+        await callback.message.answer(
+            text=OffersLexicon.OFFER_STUDENT_READY_MSG.format(
+                company_name=company_name,
+                recruiter_name=recruiter_name,
+                chat_url=url),
+            reply_markup=OffersMarkup.chat_offer(url=url)
+        )
+
+        await bot.send_message(
+            chat_id=recruiter_chat_id,
+            text=OffersLexicon.OFFER_RECRUITER_READY_MSG.format(
+                student_full_name=student_full_name,
+                student_speciality=student_speciality,
+                chat_url=url
+            ),
+            reply_markup=OffersMarkup.chat_offer(url=url)
+        )
+
+        await WebTools.set_status(_id=_id, status="EXPECTATION")
+
+    @classmethod
+    @TelegramDecorator.log_call()
+    async def no_new_offer_btn(cls, callback: CallbackQuery, state: FSMContext):
+        call_data = callback.data.split("_")
+        _id = int(call_data[-1])
+
+        await callback.message.answer(
+            text=OffersLexicon.OFFER_REJECT_REASON_MSG,
+            reply_markup=OffersMarkup.back_markup
+        )
+
+        await state.set_state(OfferState.NO_NEW_OFFER_STATE)
+        await state.update_data(id=_id)
+
+    @classmethod
+    @TelegramDecorator.log_call()
+    async def no_new_offer_msg(cls, message: Message, state: FSMContext):
+        data = await state.get_data()
+        _id = data.get("id", 0)
+
+        offer = await WebTools.get_offer(_id=_id)
+
+        await state.clear()
+
+        await message.answer(
+            text=OffersLexicon.OFFER_REJECT_SUCCESS_STUDENT_MSG,
+        )
+
+        recruiter_chat_id = offer.get("recruiterRes", {}).get("chatId", "")
+
+        student_full_name = offer.get("studentRes", {}).get("fullName", "")
+        student_speciality = offer.get("studentRes", {}).get("speciality", "")
+
+        await bot.send_message(
+            chat_id=recruiter_chat_id,
+            text=OffersLexicon.OFFER_REJECT_RECRUITER_MSG.format(
+                student_full_name=student_full_name,
+                student_speciality=student_speciality,
+                reject_reason=message.text
+            )
+        )
+
+        await WebTools.set_status(_id=_id, status="REFUSAL")

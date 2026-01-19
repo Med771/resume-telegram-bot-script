@@ -46,7 +46,7 @@ class OffersService:
         recruiter_name = offer.get("recruiterRes", {}).get("fullName", "")
         speciality = offer.get("studentRes", {}).get("speciality", "")
 
-        if offer.get("result", "") == "SYNC":
+        if offer.get("result", "") == "WAITING":
             await callback.message.answer(
                 text=OffersLexicon.OFFER_TO_STUDENT_MSG.format(
                     company_name=company_name,

@@ -78,7 +78,7 @@ class WebTools:
     @TelegramDecorator.log_call()
     async def get_offers_by_id(cls, is_stud: bool, chat_id: str, results=None) -> dict:
         if results is None:
-            results = ["SYNC", "WAITING", "EXPECTATION"]
+            results = ["WAITING", "EXPECTATION"]
 
         _ = await cls.login()
 

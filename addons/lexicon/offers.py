@@ -1,7 +1,7 @@
 class OffersLexicon:
     OFFERS_BTN_TXT: str = "📨 Предложения"
     OFFERS_BTN_CL: str = "OFFER"
-    OFFER_BTN_CL: str = "OFFER_"
+    OFFER_BTN_CL: str = "CHEK_OFFER_"
 
     NEW_OFFERS_YES_BTN_TXT: str = "💬 Обсудить"
     NEW_OFFERS_NO_BTN_TXT: str = "❌ Отказать"

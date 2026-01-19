@@ -31,3 +31,8 @@ async def no_new_offer_btn(callback: CallbackQuery, state: FSMContext):
 @offers_router.message(OffersFilter.no_new_offer_msg)
 async def no_new_offer_msg(message: Message, state: FSMContext):
     await OffersService.no_new_offer_msg(message=message, state=state)
+
+
+@offers_router.callback_query(OffersFilter.yes_offer_btn)
+async def yes_offer_btn(callback: CallbackQuery, state: FSMContext):
+    await OffersService.yes_offer_btn(callback=callback, state=state)

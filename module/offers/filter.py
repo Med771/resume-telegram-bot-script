@@ -55,4 +55,9 @@ class OffersFilter:
 
         return is_state
 
+    @classmethod
+    @TelegramDecorator.log_call()
+    async def yes_offer_btn(cls, callback: CallbackQuery, state: FSMContext = None):
+        is_btn = callback.data.startswith(OffersLexicon.OFFERS_SUCCESS_BTN_CL)
 
+        return is_btn

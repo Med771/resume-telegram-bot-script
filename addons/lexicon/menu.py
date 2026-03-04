@@ -25,3 +25,6 @@ class MenuLexicon:
 
     BACK_BTN_TXT: str = "Вернуться назад"
     BACK_BTN_CL: str = "BACK_MAIN_MENU"
+
+    PROFILE_BTN_TXT: str = "👤 Профиль"
+    PROFILE_BTN_CL: str = "OPEN_PROFILE"

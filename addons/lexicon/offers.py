@@ -7,7 +7,7 @@ class OffersLexicon:
     NEW_OFFERS_NO_BTN_TXT: str = "❌ Отказать"
 
     NEW_OFFERS_YES_BTN_CL: str = "NEW_OFFER_YES_"
-    NEW_OFFERS_NO_BTN_CL: str = "OFFER_FAILURE_"
+    NEW_OFFERS_NO_BTN_CL: str = "NEW_OFFER_NO_"
 
     OFFERS_SUCCESS_BTN_TXT: str = "✅ договорились о ТУ"
     OFFERS_FAILURE_BTN_TXT: str = "❌ Не пришли к согласию"
@@ -32,11 +32,18 @@ class OffersLexicon:
         "• <b>Отказ</b> — с указанием причины со стороны студента или работодателя."
     )
 
+    OFFERS_RECRUITER_MSG: str = (
+        "📨 <b>Текущие офферы</b>\n\n"
+        "Здесь отображаются ваши активные заявки.\n"
+        "Вы можете открыть карточку и посмотреть статус по каждому студенту.\n\n"
+        "Важно: решение по отказу/принятию принимает студент."
+    )
+
     OFFER_TO_STUDENT_MSG: str = (
         "📨 <b>Новое предложение</b>\n\n"
         "👔 <b>Компания:</b> {company_name}\n"
         "👤 <b>Контактное лицо:</b> {recruiter_name}\n"
-        "💼 <b>Направление:</b> {speciality}\n\n"
+        "\n"
         "Работодатель заинтересован в вашем профиле и предлагает "
         "обсудить возможное сотрудничество.\n\n"
         "Вы можете <b>принять предложение</b> и перейти к обсуждению в чате "
@@ -54,16 +61,41 @@ class OffersLexicon:
         "После завершения обсуждения можно будет отметить результат: <b>Согласовано</b> или <b>Не согласовано</b>."
     )
 
+    OFFER_TO_RECRUITER_WAITING_MSG: str = (
+        "⏳ <b>Ожидаем ответ студента</b>\n\n"
+        "👨‍🎓 <b>Студент:</b> {student_full_name}\n"
+        "💼 <b>Направление:</b> {student_speciality}\n"
+        "🏢 <b>Компания:</b> {company_name}\n\n"
+        "Студент еще не принял решение по вашему предложению."
+    )
+
+    OFFER_TO_RECRUITER_ACTIVE_MSG: str = (
+        "💬 <b>Обсуждение активно</b>\n\n"
+        "👨‍🎓 <b>Студент:</b> {student_full_name}\n"
+        "💼 <b>Направление:</b> {student_speciality}\n"
+        "🏢 <b>Компания:</b> {company_name}\n\n"
+        "Студент согласился обсудить предложение. Можете перейти в чат."
+    )
+
+    OFFER_RECRUITER_READONLY_MSG: str = (
+        "ℹ️ <b>Для работодателя офферы доступны только для просмотра</b>\n\n"
+        "Решение по принятию или отказу принимает студент."
+    )
+
     OFFER_STUDENT_READY_MSG: str = (
         "💬 <b>Вы можете перейти к обсуждению вакансии:</b>\n"
         "👔 <b>Компания:</b> {company_name}\n"
         "👤 <b>Контакт:</b> {recruiter_name}\n\n"
+        "👨‍🎓 <b>Ваш профиль:</b> {student_full_name}\n"
+        "💼 <b>Направление:</b> {student_speciality}\n\n"
         "Нажмите на ссылку ниже, чтобы открыть чат и обсудить детали:\n"
         "<a href='{chat_url}'>Перейти в чат</a>"
     )
 
     OFFER_RECRUITER_READY_MSG: str = (
         "💬 <b>Студент готов обсудить вакансию</b>\n\n"
+        "🏢 <b>Компания:</b> {company_name}\n"
+        "👤 <b>Контакт:</b> {recruiter_name}\n"
         "👨‍🎓 <b>Студент:</b> {student_full_name}\n"
         "💼 <b>Направление:</b> {student_speciality}\n\n"
         "Студент подтвердил готовность к общению и ожидает начала диалога.\n\n"
@@ -109,4 +141,11 @@ class OffersLexicon:
         "👨‍🎓 <b>Студент:</b> {student_full_name}\n"
         "💼 <b>Специальность:</b> {student_speciality}\n\n"
         "Мы продолжаем привлекать новых студентов и будем рады помочь вам с будущими предложениями."
+    )
+
+    OFFER_SUCCESS_RECRUITER_CONFIRM_MSG: str = (
+        "✅ <b>Вы подтвердили успешное завершение обсуждения</b>\n\n"
+        "👨‍🎓 <b>Студент:</b> {student_full_name}\n"
+        "💼 <b>Специальность:</b> {student_speciality}\n"
+        "🏢 <b>Компания:</b> {company_name}"
     )

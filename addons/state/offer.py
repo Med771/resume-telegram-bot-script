@@ -2,4 +2,4 @@ from aiogram.fsm.state import StatesGroup, State
 
 
 class OfferState(StatesGroup):
-    NO_NEW_OFFER_STATE = State(state="NO_NEW_OFFER_STATE")
+    REJECT_OFFER_REASON_STATE = State(state="REJECT_OFFER_REASON_STATE")

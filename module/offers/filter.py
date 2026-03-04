@@ -47,11 +47,17 @@ class OffersFilter:
 
         return is_btn
 
+    @classmethod
+    @TelegramDecorator.log_call()
+    async def failure_offer_btn(cls, callback: CallbackQuery, state: FSMContext = None):
+        is_btn = callback.data.startswith(OffersLexicon.OFFERS_FAILURE_BTN_CL)
+
+        return is_btn
 
     @classmethod
     @TelegramDecorator.log_call()
-    async def no_new_offer_msg(cls, message: Message, state: FSMContext = None):
-        is_state = await AdminTools.get_state(state) == OfferState.NO_NEW_OFFER_STATE
+    async def reject_offer_msg(cls, message: Message, state: FSMContext = None):
+        is_state = await AdminTools.get_state(state) == OfferState.REJECT_OFFER_REASON_STATE
 
         return is_state
 
@@ -61,3 +67,15 @@ class OffersFilter:
         is_btn = callback.data.startswith(OffersLexicon.OFFERS_SUCCESS_BTN_CL)
 
         return is_btn
+
+    @classmethod
+    @TelegramDecorator.log_call()
+    async def chat_activity_msg(cls, message: Message, state: FSMContext = None):
+        if message.chat.type not in {"group", "supergroup"}:
+            return False
+        if not message.from_user or message.from_user.is_bot:
+            return False
+        if not (message.text or message.caption or message.sticker or message.photo or message.video or message.document):
+            return False
+
+        return True

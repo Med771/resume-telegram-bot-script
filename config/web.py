@@ -8,23 +8,24 @@ from config.main import MainConfig
 class WebConfig:
     load_dotenv(dotenv_path=MainConfig.MAIN_ENV_PATH)
 
-    LOGIN_URL: str = os.getenv("LOGIN_URL", "")
+    API_BASE_URL: str = os.getenv("API_BASE_URL", "").rstrip("/")
+    CHAT_API_BASE_URL: str = os.getenv("CHAT_API_BASE_URL", "").rstrip("/")
 
-    SET_STUD_URL: str = os.getenv("SET_STUD_URL", "")
-    SET_REC_URL: str = os.getenv("SET_REC_URL", "")
+    LOGIN_URL: str = os.getenv("LOGIN_URL", f"{API_BASE_URL}/auth/login" if API_BASE_URL else "")
+    SYNC_SET_URL: str = os.getenv("SYNC_SET_URL", f"{API_BASE_URL}/sync/{{id}}" if API_BASE_URL else "")
+    SYNC_GET_URL: str = os.getenv("SYNC_GET_URL", f"{API_BASE_URL}/sync/{{id}}" if API_BASE_URL else "")
+    REQUEST_FILTER_URL: str = os.getenv("REQUEST_FILTER_URL", f"{API_BASE_URL}/request/filter" if API_BASE_URL else "")
+    REQUEST_URL: str = os.getenv("REQUEST_URL", f"{API_BASE_URL}/request/{{id}}" if API_BASE_URL else "")
+    TELEGRAM_UPDATE_URL: str = os.getenv("TELEGRAM_UPDATE_URL", f"{API_BASE_URL}/telegram/{{id}}" if API_BASE_URL else "")
+    CREATE_CHAT_URL: str = os.getenv(
+        "CREATE_CHAT_URL",
+        f"{CHAT_API_BASE_URL}/create_chat" if CHAT_API_BASE_URL else ""
+    )
+    STUDENT_URL: str = os.getenv("STUDENT_URL", f"{API_BASE_URL}/student/{{id}}" if API_BASE_URL else "")
+    RECRUITER_URL: str = os.getenv("RECRUITER_URL", f"{API_BASE_URL}/recruiter/{{id}}" if API_BASE_URL else "")
 
-    GET_STUD_INFO_URL: str = os.getenv("GET_STUD_INFO_URL", "")
-    GET_REC_INFO_URL: str = os.getenv("GET_REC_INFO_URL", "")
-
-    GET_REQ_URL: str = os.getenv("GET_REQ_URL", "")
-    GET_OFFER_URL: str = os.getenv("GET_OFFER_URL", "")
-
-    SET_STATUS_URL: str = os.getenv("SET_STATUS_URL", "")
-
-    OFFERS_URL: str = os.getenv("OFFERS_URL", "")
-    BATCH_UPDATE_STATUS_URL: str = os.getenv("BATCH_UPDATE_STATUS_URL", "")
-
-    CREATE_CHAT_URL: str = os.getenv("CREATE_CHAT_URL", "")
+    REQUEST_PAGE: int = int(os.getenv("REQUEST_PAGE", "0"))
+    REQUEST_SIZE: int = int(os.getenv("REQUEST_SIZE", "100"))
 
     USERNAME_LOGIN: str = os.getenv("USERNAME_LOGIN", "")
     PASSWORD: str = os.getenv("PASSWORD", "")
@@ -32,38 +33,24 @@ class WebConfig:
     ACCEPT: str = os.getenv("ACCEPT", "*/*")
     CONTENT_TYPE: str = os.getenv("CONTENT_TYPE", "application/json")
 
-    if not LOGIN_URL:
-        exit("Login URL not set environment variable")
-
-    if not SET_STUD_URL:
-        exit("Set STUD URL not set environment variable")
-
-    if not SET_REC_URL:
-        exit("Set REC URL not set environment variable")
-
-    if not GET_STUD_INFO_URL:
-        exit("Get STUD info URL not set environment variable")
-
-    if not GET_REC_INFO_URL:
-        exit("Get REC info URL not set environment variable")
-
-    if not GET_REQ_URL:
-        exit("Get REQ URL not set environment variable")
-
-    if not GET_OFFER_URL:
-        exit("Get OFFER URL not set environment variable")
-
-    if not SET_STATUS_URL:
-        exit("Set status URL not set environment variable")
-
-    if not OFFERS_URL:
-        exit("Offers URL not set environment variable")
-
-    if not BATCH_UPDATE_STATUS_URL:
-        exit("Batch update status URL not set environment variable")
-
+    if not API_BASE_URL and not LOGIN_URL:
+        exit("API_BASE_URL or LOGIN_URL not set environment variable")
+    if not SYNC_SET_URL:
+        exit("SYNC_SET_URL not set environment variable")
+    if not SYNC_GET_URL:
+        exit("SYNC_GET_URL not set environment variable")
+    if not REQUEST_FILTER_URL:
+        exit("REQUEST_FILTER_URL not set environment variable")
+    if not REQUEST_URL:
+        exit("REQUEST_URL not set environment variable")
+    if not TELEGRAM_UPDATE_URL:
+        exit("TELEGRAM_UPDATE_URL not set environment variable")
     if not CREATE_CHAT_URL:
-        exit("Create chat URL not set environment variable")
+        exit("CREATE_CHAT_URL not set environment variable")
+    if not STUDENT_URL:
+        exit("STUDENT_URL not set environment variable")
+    if not RECRUITER_URL:
+        exit("RECRUITER_URL not set environment variable")
 
     if not USERNAME_LOGIN:
         exit("Username login not set environment variable")

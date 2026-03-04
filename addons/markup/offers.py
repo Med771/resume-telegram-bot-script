@@ -21,28 +21,30 @@ class OffersMarkup:
         return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
     @classmethod
-    def new_offer(cls, _id: int) -> InlineKeyboardMarkup:
+    def new_offer(cls, _id: int, can_reject: bool = True) -> InlineKeyboardMarkup:
         keyboard = []
 
         NEW_OFFER_YES_BTN = InlineKeyboardButton(text=OffersLexicon.NEW_OFFERS_YES_BTN_TXT, callback_data=OffersLexicon.NEW_OFFERS_YES_BTN_CL + str(_id))
-        NEW_OFFER_NO_BTN = InlineKeyboardButton(text=OffersLexicon.NEW_OFFERS_NO_BTN_TXT, callback_data=OffersLexicon.NEW_OFFERS_NO_BTN_CL + str(_id))
 
         keyboard.append([NEW_OFFER_YES_BTN])
-        keyboard.append([NEW_OFFER_NO_BTN])
-        # keyboard.append([BACK_BTN])
+        if can_reject:
+            NEW_OFFER_NO_BTN = InlineKeyboardButton(text=OffersLexicon.NEW_OFFERS_NO_BTN_TXT, callback_data=OffersLexicon.NEW_OFFERS_NO_BTN_CL + str(_id))
+            keyboard.append([NEW_OFFER_NO_BTN])
+        keyboard.append([MENU_BTN])
 
         return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
     @classmethod
-    def active_offer(cls, _id: int) -> InlineKeyboardMarkup:
+    def active_offer(cls, _id: int, can_reject: bool = True) -> InlineKeyboardMarkup:
         keyboard = []
 
         OFFER_SUCCESS_BTN = InlineKeyboardButton(text=OffersLexicon.OFFERS_SUCCESS_BTN_TXT, callback_data=OffersLexicon.OFFERS_SUCCESS_BTN_CL + str(_id))
-        OFFER_FAILURE_BTN = InlineKeyboardButton(text=OffersLexicon.OFFERS_FAILURE_BTN_TXT, callback_data=OffersLexicon.OFFERS_FAILURE_BTN_CL + str(_id))
 
         keyboard.append([OFFER_SUCCESS_BTN])
-        keyboard.append([OFFER_FAILURE_BTN])
-        # keyboard.append([BACK_BTN])
+        if can_reject:
+            OFFER_FAILURE_BTN = InlineKeyboardButton(text=OffersLexicon.OFFERS_FAILURE_BTN_TXT, callback_data=OffersLexicon.OFFERS_FAILURE_BTN_CL + str(_id))
+            keyboard.append([OFFER_FAILURE_BTN])
+        keyboard.append([MENU_BTN])
 
         return InlineKeyboardMarkup(inline_keyboard=keyboard)
 

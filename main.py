@@ -18,20 +18,29 @@ logger = LoggerTools.get_logger(name=__name__, info=True, error=True, critical=T
 
 async def main():
     try:
-        print("COMPILING")
+        logger.info("BOOTSTRAP START")
 
         SCHEDULER.add_job(
             func=NotificationTools.check_new_offers,
             trigger=IntervalTrigger(seconds=20),
             misfire_grace_time=60
         )
+        logger.info("SCHEDULER JOB ADDED: check_new_offers every=20s")
+
+        SCHEDULER.add_job(
+            func=NotificationTools.check_failure_offers,
+            trigger=IntervalTrigger(seconds=60),
+            misfire_grace_time=120
+        )
+        logger.info("SCHEDULER JOB ADDED: check_failure_offers every=60s")
 
         SCHEDULER.start()
+        logger.info("SCHEDULER STARTED")
 
         DISPATCHER.include_routers(*routers)
+        logger.info("ROUTERS INCLUDED")
 
         logger.info("SESSION OPEN")
-        print("SESSION OPEN")
 
         await DISPATCHER.start_polling(BOT, polling_timeout=30)
     except asyncio.CancelledError:
@@ -42,7 +51,6 @@ async def main():
         SCHEDULER.shutdown()
 
         logger.info("SESSION CLOSE")
-        print("SESSION CLOSE")
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-from logging import getLogger, Logger, FileHandler, Formatter, Filter, LogRecord
+from logging import getLogger, Logger, FileHandler, StreamHandler, Formatter, Filter, LogRecord
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 from config import LoggerConfig
@@ -44,6 +44,15 @@ data_handler.addFilter(LevelFilter(DEBUG))
 data_formatter: Formatter = Formatter(
     fmt=LoggerConfig.LOG_LEVELS[INFO]["format"])
 
+console_handler: StreamHandler = StreamHandler()
+console_handler.setLevel(DEBUG)
+console_handler.setFormatter(Formatter(fmt=LoggerConfig.LOG_LEVELS[INFO]["format"]))
+
+
+def _add_handler_once(logger: Logger, handler) -> None:
+    if handler not in logger.handlers:
+        logger.addHandler(handler)
+
 
 class LoggerTools:
     @staticmethod
@@ -55,15 +64,19 @@ class LoggerTools:
                    ) -> Logger:
         logger: Logger = getLogger(name)
         logger.setLevel(DEBUG)
+        logger.propagate = False
 
         if info:
-            logger.addHandler(info_handler)
+            _add_handler_once(logger, info_handler)
         if warn:
-            logger.addHandler(warning_handler)
+            _add_handler_once(logger, warning_handler)
         if error:
-            logger.addHandler(error_handler)
+            _add_handler_once(logger, error_handler)
         if critical:
-            logger.addHandler(critical_handler)
+            _add_handler_once(logger, critical_handler)
+
+        if info or warn or error or critical:
+            _add_handler_once(logger, console_handler)
 
         return logger
 
@@ -73,7 +86,9 @@ class LoggerTools:
 
         logger: Logger = getLogger(name)
         logger.setLevel(DEBUG)
+        logger.propagate = False
 
-        logger.addHandler(data_handler)
+        _add_handler_once(logger, data_handler)
+        _add_handler_once(logger, console_handler)
 
         return logger

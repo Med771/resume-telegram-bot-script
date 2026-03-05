@@ -15,6 +15,11 @@ logger = LoggerTools.get_logger(__name__, info=True, warn=True, error=True)
 
 class NotificationTools:
     @staticmethod
+    def _offer_id(offer: dict) -> str:
+        offer_id = offer.get("id")
+        return str(offer_id) if offer_id is not None else "unknown"
+
+    @staticmethod
     def _student_chat_id(offer: dict) -> str:
         return offer.get("studentRes", {}).get("chatId", "") or offer.get("studentTelegramUserId", "")
 
@@ -99,24 +104,28 @@ class NotificationTools:
         logger.info("notifications.audit_statuses started")
 
         waiting_offers = await WebTools.get_offers(results=["WAITING"])
-        expectation_offers = await WebTools.get_offers(results=["EXPECTATION"])
+        expectation_offers = await WebTools.get_offers(results=["EXPECTATION", "STUDENT_CONFIRMED", "RECRUITER_CONFIRMED"])
         refusal_offers = await WebTools.get_offers(results=["REFUSAL"])
 
         waiting_no_response = 0
         waiting_total = 0
+        waiting_no_response_ids: list[str] = []
         for offer in waiting_offers.get("offers", []):
             waiting_total += 1
             if not offer.get("studentResponseText"):
                 waiting_no_response += 1
+                waiting_no_response_ids.append(cls._offer_id(offer))
 
         expectation_total = 0
         expectation_silent = 0
+        expectation_silent_ids: list[str] = []
         for offer in expectation_offers.get("offers", []):
             expectation_total += 1
             has_recruiter_message = bool(offer.get("hasRecruiterMessage"))
             has_student_message = bool(offer.get("hasStudentMessage"))
             if not has_recruiter_message and not has_student_message:
                 expectation_silent += 1
+                expectation_silent_ids.append(cls._offer_id(offer))
 
         refusal_total = len(refusal_offers.get("offers", []))
 
@@ -125,3 +134,11 @@ class NotificationTools:
             f"waiting_no_response={waiting_no_response}, expectation_total={expectation_total}, "
             f"expectation_silent={expectation_silent}, refusal_total={refusal_total}"
         )
+        if waiting_no_response_ids:
+            logger.warning(
+                f"notifications.audit_statuses waiting_no_response_ids={','.join(waiting_no_response_ids[:20])}"
+            )
+        if expectation_silent_ids:
+            logger.warning(
+                f"notifications.audit_statuses expectation_silent_ids={','.join(expectation_silent_ids[:20])}"
+            )

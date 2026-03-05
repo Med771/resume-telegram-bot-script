@@ -10,9 +10,11 @@ logger = LoggerTools.get_logger(__name__, info=True, warn=True, error=True)
 
 class WebTools:
     @staticmethod
-    def _paged_url(url: str) -> str:
+    def _paged_url(url: str, page: int | None = None, size: int | None = None) -> str:
+        page_value = WebConfig.REQUEST_PAGE if page is None else page
+        size_value = WebConfig.REQUEST_SIZE if size is None else size
         separator = "&" if "?" in url else "?"
-        return f"{url}{separator}page={WebConfig.REQUEST_PAGE}&size={WebConfig.REQUEST_SIZE}"
+        return f"{url}{separator}page={page_value}&size={size_value}"
 
     @staticmethod
     def _offers_payload(payload: dict | list | None) -> dict:
@@ -26,6 +28,96 @@ class WebTools:
         if isinstance(payload, list):
             return {"offers": payload}
         return {"offers": []}
+
+    @staticmethod
+    def _pagination(payload: dict | None) -> tuple[int | None, int | None]:
+        if not isinstance(payload, dict):
+            return None, None
+        page = payload.get("page")
+        total_pages = payload.get("totalPages")
+        if isinstance(page, int) and isinstance(total_pages, int):
+            return page, total_pages
+        return None, None
+
+    @staticmethod
+    def _cards_payload(payload: dict | list | None) -> dict:
+        if isinstance(payload, dict) and isinstance(payload.get("data"), list):
+            return {"students": payload["data"]}
+        if isinstance(payload, list):
+            return {"students": payload}
+        return {"students": []}
+
+    @classmethod
+    async def _request_filter_collect(cls, payload: dict) -> dict:
+        page = WebConfig.REQUEST_PAGE
+        max_pages = 200
+        offers: list[dict] = []
+
+        async with aiohttp.ClientSession() as session:
+            for _ in range(max_pages):
+                async with session.post(
+                    url=cls._paged_url(WebConfig.REQUEST_FILTER_URL, page=page),
+                    headers=WebConfig.HEADERS,
+                    cookies=WebConfig.COOKIE,
+                    json=payload
+                ) as response:
+                    if response.status != 200:
+                        response_text = await response.text()
+                        logger.error(
+                            f"request_filter failed: page={page}, status={response.status}, "
+                            f"payload={payload}, response={response_text}"
+                        )
+                        return {"offers": offers}
+
+                    response_payload = await response.json()
+                    page_offers = cls._offers_payload(response_payload).get("offers", [])
+                    offers.extend(page_offers)
+
+                    current_page, total_pages = cls._pagination(response_payload)
+                    if current_page is None or total_pages is None:
+                        break
+                    if total_pages <= 0 or current_page + 1 >= total_pages:
+                        break
+
+                    page = current_page + 1
+
+        return {"offers": offers}
+
+    @classmethod
+    async def _student_cards_filter_collect(cls, payload: dict) -> dict:
+        page = WebConfig.REQUEST_PAGE
+        max_pages = 200
+        students: list[dict] = []
+
+        async with aiohttp.ClientSession() as session:
+            for _ in range(max_pages):
+                async with session.post(
+                    url=cls._paged_url(WebConfig.STUDENT_CARDS_FILTER_URL, page=page),
+                    headers=WebConfig.HEADERS,
+                    cookies=WebConfig.COOKIE,
+                    json=payload
+                ) as response:
+                    if response.status != 200:
+                        response_text = await response.text()
+                        logger.error(
+                            f"student_cards_filter failed: page={page}, status={response.status}, "
+                            f"payload={payload}, response={response_text}"
+                        )
+                        return {"students": students}
+
+                    response_payload = await response.json()
+                    page_students = cls._cards_payload(response_payload).get("students", [])
+                    students.extend(page_students)
+
+                    current_page, total_pages = cls._pagination(response_payload)
+                    if current_page is None or total_pages is None:
+                        break
+                    if total_pages <= 0 or current_page + 1 >= total_pages:
+                        break
+
+                    page = current_page + 1
+
+        return {"students": students}
 
     @staticmethod
     def _chat_name_from_offer(offer: dict, offer_id: int) -> str:
@@ -262,7 +354,7 @@ class WebTools:
     @TelegramDecorator.log_call()
     async def get_offers_by_id(cls, is_stud: bool, chat_id: str, results=None) -> dict:
         if results is None:
-            results = ["WAITING", "EXPECTATION"]
+            results = ["WAITING", "EXPECTATION", "STUDENT_CONFIRMED", "RECRUITER_CONFIRMED"]
 
         _ = await cls.login()
 
@@ -277,18 +369,7 @@ class WebTools:
             else:
                 return {"offers": []}
 
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    url=cls._paged_url(WebConfig.REQUEST_FILTER_URL),
-                    headers=WebConfig.HEADERS,
-                    cookies=WebConfig.COOKIE,
-                    json=payload
-                ) as response:
-                    if response.status == 200:
-                        return cls._offers_payload(await response.json())
-
-                    print("Request filter URL status:", response.status)
-                    return {"offers": []}
+            return await cls._request_filter_collect(payload=payload)
 
         return {"offers": []}
 
@@ -302,6 +383,7 @@ class WebTools:
         student_response_text: str = "",
         has_recruiter_message: bool | None = None,
         has_student_message: bool | None = None,
+        chat_id: str = "",
     ) -> bool:
         _ = await cls.login()
 
@@ -312,6 +394,8 @@ class WebTools:
             payload["hasRecruiterMessage"] = has_recruiter_message
         if has_student_message is not None:
             payload["hasStudentMessage"] = has_student_message
+        if chat_id:
+            payload["chatId"] = str(chat_id).strip()
 
         logger.info(
             f"set_status request: offer_id={_id}, status={status}, "
@@ -362,23 +446,10 @@ class WebTools:
     @classmethod
     async def get_offers(cls, results=None) -> dict:
         if results is None:
-            results = ["SYNC", "WAITING", "EXPECTATION"]
+            results = ["SYNC", "WAITING", "EXPECTATION", "STUDENT_CONFIRMED", "RECRUITER_CONFIRMED"]
 
         _ = await cls.login()
-
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                url=cls._paged_url(WebConfig.REQUEST_FILTER_URL),
-                headers=WebConfig.HEADERS,
-                cookies=WebConfig.COOKIE,
-                json={"results": results}) as response:
-
-                if response.status == 200:
-                    return cls._offers_payload(await response.json())
-
-                print("Get offers URL status:", response.status)
-
-        return {"offers": []}
+        return await cls._request_filter_collect(payload={"results": results})
 
     @classmethod
     @TelegramDecorator.log_call()
@@ -387,7 +458,7 @@ class WebTools:
             logger.warning("get_offer_by_chat_id skipped: empty chat_id")
             return {}
         if results is None:
-            results = ["EXPECTATION"]
+            results = ["EXPECTATION", "STUDENT_CONFIRMED", "RECRUITER_CONFIRMED"]
 
         offers_payload = await cls.get_offers(results=results)
         offers = offers_payload.get("offers", [])
@@ -405,6 +476,65 @@ class WebTools:
 
         logger.warning(f"get_offer_by_chat_id not found: chat_id={chat_id}, results={results}")
         return {}
+
+    @classmethod
+    @TelegramDecorator.log_call()
+    async def get_student_cards(cls, filters: dict | None = None) -> dict:
+        _ = await cls.login()
+        payload = filters if isinstance(filters, dict) else {}
+        return await cls._student_cards_filter_collect(payload=payload)
+
+    @classmethod
+    @TelegramDecorator.log_call()
+    async def get_similar_students_by_offer(cls, offer: dict, limit: int = 5) -> list[dict]:
+        if not isinstance(offer, dict):
+            return []
+
+        current_student_id = str(offer.get("studentId", "") or "").strip()
+        if not current_student_id:
+            return []
+
+        current_student = await cls.get_student(student_id=current_student_id)
+        if not current_student:
+            return []
+
+        speciality_id = current_student.get("specialityId")
+        skills = current_student.get("skills", [])
+        skill_ids: list[int] = []
+        if isinstance(skills, list):
+            for skill in skills:
+                if isinstance(skill, dict) and isinstance(skill.get("id"), int):
+                    skill_ids.append(skill["id"])
+
+        filters_primary: dict = {}
+        if isinstance(speciality_id, int):
+            filters_primary["specialitiesIds"] = [speciality_id]
+        if skill_ids:
+            filters_primary["skillsIds"] = skill_ids[:10]
+
+        candidates: list[dict] = []
+        if filters_primary:
+            cards_payload = await cls.get_student_cards(filters=filters_primary)
+            candidates = cards_payload.get("students", [])
+
+        if not candidates:
+            speciality_text = str(current_student.get("speciality", "")).strip()
+            if speciality_text:
+                cards_payload = await cls.get_student_cards(filters={"findString": speciality_text})
+                candidates = cards_payload.get("students", [])
+
+        unique_students: list[dict] = []
+        used_ids: set[str] = set()
+        for student in candidates:
+            student_id = str(student.get("id", "")).strip()
+            if not student_id or student_id == current_student_id or student_id in used_ids:
+                continue
+            used_ids.add(student_id)
+            unique_students.append(student)
+            if len(unique_students) >= limit:
+                break
+
+        return unique_students
 
     @classmethod
     async def batch_update(cls, results: list[tuple[int, str]]):

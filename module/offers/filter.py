@@ -11,7 +11,7 @@ class OffersFilter:
     @classmethod
     @TelegramDecorator.log_call()
     async def back_btn(cls, callback: CallbackQuery, state: FSMContext):
-        is_btn = callback.data == OffersLexicon.BACK_TO_OFFERS_BTN_TXT
+        is_btn = callback.data == OffersLexicon.BACK_TO_OFFERS_BTN_CL
         # state_data = await state.get_data()
 
         return is_btn
@@ -74,8 +74,6 @@ class OffersFilter:
         if message.chat.type not in {"group", "supergroup"}:
             return False
         if not message.from_user or message.from_user.is_bot:
-            return False
-        if not (message.text or message.caption or message.sticker or message.photo or message.video or message.document):
             return False
 
         return True

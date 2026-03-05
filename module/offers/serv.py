@@ -17,6 +17,9 @@ logger = LoggerTools.get_logger(__name__, info=True, warn=True, error=True)
 
 
 class OffersService:
+    SUCCESS_INTERMEDIATE_STATUSES = {"STUDENT_CONFIRMED", "RECRUITER_CONFIRMED"}
+    STUDENT_RESUME_URL_TEMPLATE = "https://singularity-resume.ru/studentsResume/{student_id}"
+
     @staticmethod
     def _result(offer: dict) -> str:
         return offer.get("result", "") or offer.get("resultEnum", "")
@@ -47,17 +50,19 @@ class OffersService:
 
     @staticmethod
     def _recruiter_chat_id(offer: dict) -> str:
-        return (
+        chat_id = (
             offer.get("recruiterRes", {}).get("chatId", "")
             or offer.get("recruiterTelegramUserId", "")
         )
+        return str(chat_id).strip()
 
     @staticmethod
     def _student_chat_id(offer: dict) -> str:
-        return (
+        chat_id = (
             offer.get("studentRes", {}).get("chatId", "")
             or offer.get("studentTelegramUserId", "")
         )
+        return str(chat_id).strip()
 
     @staticmethod
     def _student_full_name(offer: dict) -> str:
@@ -70,6 +75,40 @@ class OffersService:
     @staticmethod
     def _chat_url(offer: dict) -> str:
         return offer.get("chatUrl", "") or offer.get("chat_url", "")
+
+    @classmethod
+    def _student_resume_link(cls, student_id: str) -> str:
+        return cls.STUDENT_RESUME_URL_TEMPLATE.format(student_id=student_id)
+
+    @classmethod
+    def _format_similar_students_links(cls, students: list[dict]) -> str:
+        lines: list[str] = []
+        for student in students:
+            student_id = str(student.get("id", "")).strip()
+            if not student_id:
+                continue
+            full_name = (
+                f"{str(student.get('firstName', '')).strip()} {str(student.get('lastName', '')).strip()}".strip()
+                or "Студент"
+            )
+            lines.append(f"• {full_name}: {cls._student_resume_link(student_id=student_id)}")
+        return "\n".join(lines)
+
+    @classmethod
+    def _next_success_status(cls, current_result: str, is_student_actor: bool) -> str:
+        if is_student_actor:
+            if current_result == "RECRUITER_CONFIRMED":
+                return "SUCCESS"
+            return "STUDENT_CONFIRMED"
+        if current_result == "STUDENT_CONFIRMED":
+            return "SUCCESS"
+        return "RECRUITER_CONFIRMED"
+
+    @classmethod
+    def _already_confirmed_by_actor(cls, current_result: str, is_student_actor: bool) -> bool:
+        return (is_student_actor and current_result == "STUDENT_CONFIRMED") or (
+            (not is_student_actor) and current_result == "RECRUITER_CONFIRMED"
+        )
 
     @classmethod
     @TelegramDecorator.log_call()
@@ -85,10 +124,27 @@ class OffersService:
             f"message_id={message.message_id}"
         )
 
-        offer = await WebTools.get_offer_by_chat_id(chat_id=chat_id, results=["EXPECTATION"])
+        offer = await WebTools.get_offer_by_chat_id(chat_id=chat_id)
         if not offer:
-            logger.warning(f"chat_activity_msg no active offer: chat_id={chat_id}")
-            return
+            # Fallback for old offers where chatId was not persisted yet.
+            sender_offers = await WebTools.get_offers_by_id(
+                is_stud=True,
+                chat_id=sender_id,
+                results=["EXPECTATION", "STUDENT_CONFIRMED", "RECRUITER_CONFIRMED"]
+            )
+            sender_active_offers = sender_offers.get("offers", [])
+            if len(sender_active_offers) == 1:
+                offer = sender_active_offers[0]
+                logger.warning(
+                    f"chat_activity_msg fallback offer by sender: chat_id={chat_id}, sender_id={sender_id}, "
+                    f"offer_id={offer.get('id')}"
+                )
+            else:
+                logger.warning(
+                    f"chat_activity_msg no active offer: chat_id={chat_id}, sender_id={sender_id}, "
+                    f"sender_offers={len(sender_active_offers)}"
+                )
+                return
 
         enriched_offer = await WebTools.enrich_offer(offer=offer)
         if enriched_offer:
@@ -102,15 +158,40 @@ class OffersService:
         recruiter_chat_id = cls._recruiter_chat_id(offer=offer)
         student_chat_id = cls._student_chat_id(offer=offer)
         current_result = cls._result(offer=offer) or "EXPECTATION"
+        offer_student_id = str(offer.get("studentId", "")).strip()
+        offer_recruiter_id = str(offer.get("recruiterId", "")).strip()
 
+        actor_role = ""
         if sender_id == recruiter_chat_id:
-            if offer.get("hasRecruiterMessage"):
+            actor_role = "recruiter"
+        elif sender_id == student_chat_id:
+            actor_role = "student"
+        else:
+            sync_payload = await WebTools.get_sync(user_id=sender_id)
+            sync_type = str(sync_payload.get("type", "")).strip()
+            sync_profile_id = str(sync_payload.get("id", "")).strip()
+            if sync_type == "re" and sync_profile_id and sync_profile_id == offer_recruiter_id:
+                actor_role = "recruiter"
+                logger.warning(
+                    f"chat_activity_msg role resolved by sync: offer_id={offer_id}, sender_id={sender_id}, "
+                    f"role={actor_role}"
+                )
+            elif sync_type == "st" and sync_profile_id and sync_profile_id == offer_student_id:
+                actor_role = "student"
+                logger.warning(
+                    f"chat_activity_msg role resolved by sync: offer_id={offer_id}, sender_id={sender_id}, "
+                    f"role={actor_role}"
+                )
+
+        if actor_role == "recruiter":
+            if offer.get("hasRecruiterMessage") is True:
                 logger.info(f"chat_activity_msg recruiter flag already true: offer_id={offer_id}")
                 return
             updated = await WebTools.set_status(
                 _id=offer_id,
                 status=current_result,
-                has_recruiter_message=True
+                has_recruiter_message=True,
+                chat_id=chat_id
             )
             logger.info(
                 f"chat_activity_msg recruiter update: offer_id={offer_id}, updated={updated}, "
@@ -118,14 +199,15 @@ class OffersService:
             )
             return
 
-        if sender_id == student_chat_id:
-            if offer.get("hasStudentMessage"):
+        if actor_role == "student":
+            if offer.get("hasStudentMessage") is True:
                 logger.info(f"chat_activity_msg student flag already true: offer_id={offer_id}")
                 return
             updated = await WebTools.set_status(
                 _id=offer_id,
                 status=current_result,
-                has_student_message=True
+                has_student_message=True,
+                chat_id=chat_id
             )
             logger.info(
                 f"chat_activity_msg student update: offer_id={offer_id}, updated={updated}, "
@@ -135,7 +217,8 @@ class OffersService:
 
         logger.warning(
             f"chat_activity_msg sender is not participant: offer_id={offer_id}, sender_id={sender_id}, "
-            f"student_chat_id={student_chat_id}, recruiter_chat_id={recruiter_chat_id}"
+            f"student_chat_id={student_chat_id}, recruiter_chat_id={recruiter_chat_id}, "
+            f"offer_student_id={offer_student_id}, offer_recruiter_id={offer_recruiter_id}"
         )
 
     @classmethod
@@ -212,14 +295,24 @@ class OffersService:
                     reply_markup=OffersMarkup.new_offer(_id=_id, can_reject=True)
                 )
                 return
-            if result == "EXPECTATION":
+            if result in {"EXPECTATION", "RECRUITER_CONFIRMED"}:
                 await callback.message.answer(
-                    text=OffersLexicon.OFFER_CHAT_ACTIVE_MSG.format(
-                        company_name=company_name,
-                        recruiter_name=recruiter_name,
-                        speciality=speciality
+                    text=(
+                        OffersLexicon.OFFER_CHAT_ACTIVE_MSG.format(
+                            company_name=company_name,
+                            recruiter_name=recruiter_name,
+                            speciality=speciality
+                        )
+                        if result == "EXPECTATION"
+                        else OffersLexicon.OFFER_SUCCESS_OTHER_SIDE_CONFIRMED_MSG
                     ),
                     reply_markup=OffersMarkup.active_offer(_id=_id, can_reject=True)
+                )
+                return
+            if result == "STUDENT_CONFIRMED":
+                await callback.message.answer(
+                    text=OffersLexicon.OFFER_SUCCESS_WAIT_OTHER_SIDE_MSG,
+                    reply_markup=OffersMarkup.back_markup
                 )
                 return
         else:
@@ -229,21 +322,43 @@ class OffersService:
                     text=OffersLexicon.OFFER_TO_RECRUITER_WAITING_MSG.format(
                         student_full_name=student_full_name,
                         student_speciality=speciality,
-                        company_name=company_name
+                        company_name=company_name,
                     ),
                     reply_markup=OffersMarkup.back_markup
                 )
                 return
-            if result == "EXPECTATION":
+            if result in {"EXPECTATION", "STUDENT_CONFIRMED"}:
                 await callback.message.answer(
-                    text=OffersLexicon.OFFER_TO_RECRUITER_ACTIVE_MSG.format(
-                        student_full_name=student_full_name,
-                        student_speciality=speciality,
-                        company_name=company_name
+                    text=(
+                        OffersLexicon.OFFER_TO_RECRUITER_ACTIVE_MSG.format(
+                            student_full_name=student_full_name,
+                            student_speciality=speciality,
+                            company_name=company_name
+                        )
+                        if result == "EXPECTATION"
+                        else OffersLexicon.OFFER_SUCCESS_OTHER_SIDE_CONFIRMED_RECRUITER_MSG
                     ),
                     reply_markup=OffersMarkup.active_offer(_id=_id, can_reject=False)
                 )
                 return
+            if result == "RECRUITER_CONFIRMED":
+                await callback.message.answer(
+                    text=OffersLexicon.OFFER_SUCCESS_WAIT_OTHER_SIDE_RECRUITER_MSG,
+                    reply_markup=OffersMarkup.back_markup
+                )
+                return
+
+        if result == "SUCCESS":
+            student_full_name = cls._student_full_name(offer=offer)
+            await callback.message.answer(
+                text=OffersLexicon.OFFER_SUCCESS_RECRUITER_CONFIRM_MSG.format(
+                        student_full_name=student_full_name,
+                        student_speciality=speciality,
+                        company_name=company_name
+                    ),
+                reply_markup=OffersMarkup.back_markup
+            )
+            return
 
         await callback.message.answer(
             text=ErrorLexicon.ERROR_RETURN_MENU_MSG,
@@ -277,14 +392,16 @@ class OffersService:
 
             return
 
+        offer = _res if isinstance(_res, dict) else {}
+        offer_chat_id = str(offer.get("chatId", "")).strip()
+
         await WebTools.set_status(
             _id=_id,
             status="EXPECTATION",
             has_recruiter_message=False,
-            has_student_message=False
+            has_student_message=False,
+            chat_id=offer_chat_id
         )
-
-        offer = _res if isinstance(_res, dict) else {}
 
         company_name = cls._company_name(offer=offer)
         recruiter_name = cls._recruiter_name(offer=offer)
@@ -380,7 +497,6 @@ class OffersService:
         recruiter_chat_id = cls._recruiter_chat_id(offer=offer)
         student_full_name = cls._student_full_name(offer=offer)
         student_speciality = cls._speciality(offer=offer)
-        reject_reason = message.text or ""
 
         await WebTools.set_status(_id=_id, status="REFUSAL", student_response_text=message.text)
 
@@ -395,9 +511,21 @@ class OffersService:
                 text=OffersLexicon.OFFER_REJECT_RECRUITER_MSG.format(
                     student_full_name=student_full_name,
                     student_speciality=student_speciality,
-                    reject_reason=reject_reason,
                 ),
             )
+            similar_students = await WebTools.get_similar_students_by_offer(offer=offer, limit=10)
+            if similar_students:
+                await bot.send_message(
+                    chat_id=recruiter_chat_id,
+                    text=OffersLexicon.OFFER_SIMILAR_STUDENTS_MSG.format(
+                        students_links=cls._format_similar_students_links(similar_students)
+                    )
+                )
+            else:
+                await bot.send_message(
+                    chat_id=recruiter_chat_id,
+                    text=OffersLexicon.OFFER_SIMILAR_STUDENTS_EMPTY_MSG
+                )
 
     @classmethod
     @TelegramDecorator.log_call()
@@ -420,8 +548,53 @@ class OffersService:
 
         student_full_name = cls._student_full_name(offer=offer)
         student_speciality = cls._speciality(offer=offer)
+        current_result = cls._result(offer=offer)
 
-        await WebTools.set_status(_id=_id, status="SUCCESS")
+        if current_result not in {"EXPECTATION", "STUDENT_CONFIRMED", "RECRUITER_CONFIRMED"}:
+            await callback.message.answer(
+                text=ErrorLexicon.ERROR_RETURN_MENU_MSG,
+                reply_markup=OffersMarkup.back_markup
+            )
+            return
+
+        if cls._already_confirmed_by_actor(current_result=current_result, is_student_actor=is_stud):
+            await callback.message.answer(
+                text=(
+                    OffersLexicon.OFFER_SUCCESS_WAIT_OTHER_SIDE_MSG
+                    if is_stud
+                    else OffersLexicon.OFFER_SUCCESS_WAIT_OTHER_SIDE_RECRUITER_MSG
+                ),
+                reply_markup=OffersMarkup.back_markup
+            )
+            return
+
+        next_result = cls._next_success_status(current_result=current_result, is_student_actor=is_stud)
+
+        await WebTools.set_status(_id=_id, status=next_result)
+
+        if next_result != "SUCCESS":
+            await callback.message.answer(
+                text=(
+                    OffersLexicon.OFFER_SUCCESS_WAIT_OTHER_SIDE_MSG
+                    if is_stud
+                    else OffersLexicon.OFFER_SUCCESS_WAIT_OTHER_SIDE_RECRUITER_MSG
+                ),
+                reply_markup=OffersMarkup.back_markup
+            )
+
+            if is_stud and recruiter_chat_id:
+                await bot.send_message(
+                    chat_id=recruiter_chat_id,
+                    text=OffersLexicon.OFFER_SUCCESS_OTHER_SIDE_CONFIRMED_RECRUITER_MSG,
+                    reply_markup=OffersMarkup.active_offer(_id=_id, can_reject=False)
+                )
+            if (not is_stud) and student_chat_id:
+                await bot.send_message(
+                    chat_id=student_chat_id,
+                    text=OffersLexicon.OFFER_SUCCESS_OTHER_SIDE_CONFIRMED_MSG,
+                    reply_markup=OffersMarkup.active_offer(_id=_id, can_reject=True)
+                )
+            return
 
         if is_stud:
             await callback.message.answer(

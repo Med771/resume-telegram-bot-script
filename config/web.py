@@ -22,6 +22,10 @@ class WebConfig:
         f"{CHAT_API_BASE_URL}/create_chat" if CHAT_API_BASE_URL else ""
     )
     STUDENT_URL: str = os.getenv("STUDENT_URL", f"{API_BASE_URL}/student/{{id}}" if API_BASE_URL else "")
+    STUDENT_CARDS_FILTER_URL: str = os.getenv(
+        "STUDENT_CARDS_FILTER_URL",
+        f"{API_BASE_URL}/student/cardsFilter" if API_BASE_URL else ""
+    )
     RECRUITER_URL: str = os.getenv("RECRUITER_URL", f"{API_BASE_URL}/recruiter/{{id}}" if API_BASE_URL else "")
 
     REQUEST_PAGE: int = int(os.getenv("REQUEST_PAGE", "0"))
@@ -49,6 +53,8 @@ class WebConfig:
         exit("CREATE_CHAT_URL not set environment variable")
     if not STUDENT_URL:
         exit("STUDENT_URL not set environment variable")
+    if not STUDENT_CARDS_FILTER_URL:
+        exit("STUDENT_CARDS_FILTER_URL not set environment variable")
     if not RECRUITER_URL:
         exit("RECRUITER_URL not set environment variable")
 

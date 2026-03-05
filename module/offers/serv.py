@@ -26,48 +26,54 @@ class OffersService:
 
     @staticmethod
     def _company_name(offer: dict) -> str:
+        recruiter_res = offer.get("recruiterRes") or {}
         return (
-            offer.get("recruiterRes", {}).get("companyName", "")
+            recruiter_res.get("companyName", "")
             or offer.get("companyName", "")
             or offer.get("recruiterCompanyName", "")
         )
 
     @staticmethod
     def _recruiter_name(offer: dict) -> str:
+        recruiter_res = offer.get("recruiterRes") or {}
         return (
-            offer.get("recruiterRes", {}).get("fullName", "")
+            recruiter_res.get("fullName", "")
             or offer.get("recruiterName", "")
             or "Работодатель"
         )
 
     @staticmethod
     def _speciality(offer: dict) -> str:
+        student_res = offer.get("studentRes") or {}
         return (
-            offer.get("studentRes", {}).get("speciality", "")
+            student_res.get("speciality", "")
             or offer.get("studentSpeciality", "")
             or "Не указано"
         )
 
     @staticmethod
     def _recruiter_chat_id(offer: dict) -> str:
+        recruiter_res = offer.get("recruiterRes") or {}
         chat_id = (
-            offer.get("recruiterRes", {}).get("chatId", "")
+            recruiter_res.get("chatId", "")
             or offer.get("recruiterTelegramUserId", "")
         )
         return str(chat_id).strip()
 
     @staticmethod
     def _student_chat_id(offer: dict) -> str:
+        student_res = offer.get("studentRes") or {}
         chat_id = (
-            offer.get("studentRes", {}).get("chatId", "")
+            student_res.get("chatId", "")
             or offer.get("studentTelegramUserId", "")
         )
         return str(chat_id).strip()
 
     @staticmethod
     def _student_full_name(offer: dict) -> str:
+        student_res = offer.get("studentRes") or {}
         return (
-            offer.get("studentRes", {}).get("fullName", "")
+            student_res.get("fullName", "")
             or offer.get("studentFullName", "")
             or "Студент"
         )

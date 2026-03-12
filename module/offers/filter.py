@@ -8,51 +8,43 @@ from tools.admin import AdminTools
 
 
 class OffersFilter:
+    @staticmethod
+    def _eq(value: str | None, expected: str) -> bool:
+        return (value or "") == expected
+
+    @staticmethod
+    def _starts(value: str | None, prefix: str) -> bool:
+        return (value or "").startswith(prefix)
+
     @classmethod
     @TelegramDecorator.log_call()
     async def back_btn(cls, callback: CallbackQuery, state: FSMContext):
-        is_btn = callback.data == OffersLexicon.BACK_TO_OFFERS_BTN_CL
-        # state_data = await state.get_data()
-
-        return is_btn
+        return cls._eq(callback.data, OffersLexicon.BACK_TO_OFFERS_BTN_CL)
 
     @classmethod
     @TelegramDecorator.log_call()
     async def offers_btn(cls, callback: CallbackQuery, state: FSMContext = None):
-        is_btn = callback.data == OffersLexicon.OFFERS_BTN_CL
-        # state_data = await state.get_data()
-
-        return is_btn
+        return cls._eq(callback.data, OffersLexicon.OFFERS_BTN_CL)
 
     @classmethod
     @TelegramDecorator.log_call()
     async def offer_btn(cls, callback: CallbackQuery, state: FSMContext = None):
-        is_btn = callback.data.startswith(OffersLexicon.OFFER_BTN_CL)
-        # state_data = await state.get_data()
-
-        return is_btn
+        return cls._starts(callback.data, OffersLexicon.OFFER_BTN_CL)
 
     @classmethod
     @TelegramDecorator.log_call()
     async def yes_new_offer_btn(cls, callback: CallbackQuery, state: FSMContext = None):
-        is_btn = callback.data.startswith(OffersLexicon.NEW_OFFERS_YES_BTN_CL)
-        # state_data = await state.get_data()
-
-        return is_btn
+        return cls._starts(callback.data, OffersLexicon.NEW_OFFERS_YES_BTN_CL)
 
     @classmethod
     @TelegramDecorator.log_call()
     async def no_new_offer_btn(cls, callback: CallbackQuery, state: FSMContext = None):
-        is_btn = callback.data.startswith(OffersLexicon.NEW_OFFERS_NO_BTN_CL)
-
-        return is_btn
+        return cls._starts(callback.data, OffersLexicon.NEW_OFFERS_NO_BTN_CL)
 
     @classmethod
     @TelegramDecorator.log_call()
     async def failure_offer_btn(cls, callback: CallbackQuery, state: FSMContext = None):
-        is_btn = callback.data.startswith(OffersLexicon.OFFERS_FAILURE_BTN_CL)
-
-        return is_btn
+        return cls._starts(callback.data, OffersLexicon.OFFERS_FAILURE_BTN_CL)
 
     @classmethod
     @TelegramDecorator.log_call()
@@ -64,16 +56,4 @@ class OffersFilter:
     @classmethod
     @TelegramDecorator.log_call()
     async def yes_offer_btn(cls, callback: CallbackQuery, state: FSMContext = None):
-        is_btn = callback.data.startswith(OffersLexicon.OFFERS_SUCCESS_BTN_CL)
-
-        return is_btn
-
-    @classmethod
-    @TelegramDecorator.log_call()
-    async def chat_activity_msg(cls, message: Message, state: FSMContext = None):
-        if message.chat.type not in {"group", "supergroup"}:
-            return False
-        if not message.from_user or message.from_user.is_bot:
-            return False
-
-        return True
+        return cls._starts(callback.data, OffersLexicon.OFFERS_SUCCESS_BTN_CL)

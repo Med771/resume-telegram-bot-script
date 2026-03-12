@@ -120,7 +120,7 @@ class WebTools:
         return {"students": students}
 
     @staticmethod
-    def _chat_name_from_offer(offer: dict, offer_id: int) -> str:
+    def _chat_name_from_offer(offer: dict) -> str:
         company_name = (
             offer.get("recruiterRes", {}).get("companyName", "")
             or offer.get("companyName", "")
@@ -132,6 +132,26 @@ class WebTools:
             or "Не указано"
         )
         return f"Оффер | Студент: {student_name} | Компания: {company_name}"
+
+    @staticmethod
+    def _extract_chat_response(payload: dict) -> tuple[str, str]:
+        if not isinstance(payload, dict):
+            return "", ""
+
+        chat_id = (
+            payload.get("chat_id", "")
+            or payload.get("chatId", "")
+            or payload.get("id", "")
+        )
+        chat_url = (
+            payload.get("invite_link", "")
+            or payload.get("inviteLink", "")
+            or payload.get("chatUrl", "")
+            or payload.get("chat_url", "")
+            or payload.get("url", "")
+        )
+
+        return str(chat_id).strip(), str(chat_url).strip()
 
     @staticmethod
     def _full_name(first_name: str, last_name: str) -> str:
@@ -234,10 +254,12 @@ class WebTools:
                 if response.status in (200, 204):
                     return 2
                 if response.status == 400:
-                    print(await response.text())
+                    logger.warning(f"referral_link conflict: profile_id={_id}, user_id={user_id}")
                     return 1
 
-                print("Referral status:", response.status)
+                logger.error(
+                    f"referral_link failed: profile_id={_id}, user_id={user_id}, status={response.status}"
+                )
 
         return 0
 
@@ -260,7 +282,7 @@ class WebTools:
                     if isinstance(payload, dict):
                         return payload
 
-                print("Get sync URL status:", response.status)
+                logger.warning(f"get_sync failed: user_id={user_id}, status={response.status}")
 
         return {}
 
@@ -280,7 +302,7 @@ class WebTools:
                     if isinstance(payload, dict):
                         return cls._normalize_student(payload)
 
-                print("Get student URL status:", response.status)
+                logger.warning(f"get_student failed: student_id={student_id}, status={response.status}")
 
         return {}
 
@@ -300,7 +322,7 @@ class WebTools:
                     if isinstance(payload, dict):
                         return cls._normalize_recruiter(payload)
 
-                print("Get recruiter URL status:", response.status)
+                logger.warning(f"get_recruiter failed: recruiter_id={recruiter_id}, status={response.status}")
 
         return {}
 
@@ -403,24 +425,37 @@ class WebTools:
             f"hasStudentMessage={payload.get('hasStudentMessage')}"
         )
 
-        async with aiohttp.ClientSession() as session:
-            async with session.put(
-                url=WebConfig.TELEGRAM_UPDATE_URL.format(id=_id),
-                headers=WebConfig.HEADERS,
-                cookies=WebConfig.COOKIE,
-                json=payload
-            ) as response:
+        async def _put(update_payload: dict[str, object], attempt: str) -> bool:
+            async with aiohttp.ClientSession() as session:
+                async with session.put(
+                    url=WebConfig.TELEGRAM_UPDATE_URL.format(id=_id),
+                    headers=WebConfig.HEADERS,
+                    cookies=WebConfig.COOKIE,
+                    json=update_payload
+                ) as response:
+                    if response.status in (200, 204):
+                        logger.info(
+                            f"set_status success: offer_id={_id}, response_status={response.status}, attempt={attempt}"
+                        )
+                        return True
 
-                if response.status in (200, 204):
-                    logger.info(f"set_status success: offer_id={_id}, response_status={response.status}")
-                    return True
+                    response_text = await response.text()
+                    logger.error(
+                        f"set_status failed: offer_id={_id}, response_status={response.status}, "
+                        f"attempt={attempt}, payload={update_payload}, response={response_text}"
+                    )
+                    return False
 
-                print("Update telegram request URL status:", response.status)
-                response_text = await response.text()
-                logger.error(
-                    f"set_status failed: offer_id={_id}, response_status={response.status}, "
-                    f"payload={payload}, response={response_text}"
-                )
+        if await _put(update_payload=payload, attempt="primary"):
+            return True
+
+        # Backend fallback: some environments fail to update boolean flags
+        # when full payload includes unchanged result field.
+        fallback_payload = dict(payload)
+        fallback_payload.pop("result", None)
+        if (has_recruiter_message is not None or has_student_message is not None or chat_id) and fallback_payload:
+            if await _put(update_payload=fallback_payload, attempt="flags_only"):
+                return True
 
         return False
 
@@ -439,7 +474,7 @@ class WebTools:
                 if response.status == 200:
                     return await response.json()
 
-                print("Get request URL status:", response.status)
+                logger.warning(f"get_offer failed: offer_id={_id}, status={response.status}")
 
         return {}
 
@@ -558,28 +593,47 @@ class WebTools:
         request_kwargs: dict = {
             "url": request_url,
             "headers": WebConfig.HEADERS,
-            "cookies": WebConfig.COOKIE
+            "cookies": WebConfig.COOKIE,
+            # Some chat services require this body regardless of URL format.
+            "json": {"chat_name": cls._chat_name_from_offer(offer=source_offer)}
         }
-        if "{id}" not in create_chat_url:
-            request_kwargs["json"] = {"chat_name": cls._chat_name_from_offer(offer=source_offer, offer_id=_id)}
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(**request_kwargs) as response:
+        try:
+            timeout = aiohttp.ClientTimeout(total=15)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(**request_kwargs) as response:
+                    if response.status in (200, 201):
+                        try:
+                            payload = await response.json()
+                        except Exception:
+                            response_text = await response.text()
+                            logger.error(
+                                f"create_chat invalid json: offer_id={_id}, status={response.status}, "
+                                f"response={response_text}"
+                            )
+                            return {}
 
-                if response.status == 200:
-                    payload = await response.json()
-                    if isinstance(payload, dict) and payload.get("invite_link"):
-                        merged_offer = dict(source_offer)
-                        merged_offer["chatUrl"] = payload.get("invite_link", "")
-                        merged_offer["chatId"] = payload.get("chat_id", "")
-                        return merged_offer
-                    if isinstance(payload, dict):
-                        return payload
+                        if isinstance(payload, dict):
+                            chat_id, chat_url = cls._extract_chat_response(payload)
+                            if chat_id or chat_url:
+                                merged_offer = dict(source_offer)
+                                if chat_url:
+                                    merged_offer["chatUrl"] = chat_url
+                                if chat_id:
+                                    merged_offer["chatId"] = chat_id
+                                return merged_offer
+                            return payload
 
-                print("Create chat URL status:", response.status)
-                try:
-                    print("Create chat response:", await response.text())
-                except Exception:
-                    pass
+                    logger.error(f"create_chat failed: offer_id={_id}, status={response.status}")
+                    try:
+                        logger.error(f"create_chat response: offer_id={_id}, response={await response.text()}")
+                    except Exception:
+                        pass
+        except aiohttp.ClientError as ex:
+            logger.error(
+                f"create_chat network error: offer_id={_id}, url={request_url}, error={type(ex).__name__}: {ex}"
+            )
+        except TimeoutError:
+            logger.error(f"create_chat timeout: offer_id={_id}, url={request_url}")
 
         return {}

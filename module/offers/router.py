@@ -41,8 +41,3 @@ async def reject_offer_msg(message: Message, state: FSMContext):
 @offers_router.callback_query(OffersFilter.yes_offer_btn)
 async def yes_offer_btn(callback: CallbackQuery, state: FSMContext):
     await OffersService.yes_offer_btn(callback=callback, state=state)
-
-
-@offers_router.message(OffersFilter.chat_activity_msg)
-async def chat_activity_msg(message: Message):
-    await OffersService.chat_activity_msg(message=message)

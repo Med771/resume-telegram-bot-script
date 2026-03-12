@@ -45,10 +45,9 @@ class MenuService:
     async def start_msg(cls, message: Message, state: FSMContext):
         await state.clear()
 
-        _arr = message.text.split()
-
-        if len(_arr) == 2:
-            args = message.text.split()[1]
+        parts = message.text.split(maxsplit=1)
+        if len(parts) == 2:
+            args = parts[1]
             parsed = parse_sync_args(raw_args=args)
             if not parsed:
                 await message.answer(text=MenuLexicon.NO_SYNC_START_MSG, reply_markup=ReplyKeyboardRemove())

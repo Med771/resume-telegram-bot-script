@@ -6,14 +6,14 @@ from addons.decorator import TelegramDecorator
 from addons.markup import OffersMarkup
 from addons.state.offer import OfferState
 
+from module.chat.serv import ChatService
+
 from tools.admin import AdminTools
-from tools.logger import LoggerTools
 from tools.web import WebTools
 
 from config import TelegramConfig
 
 bot = TelegramConfig.BOT
-logger = LoggerTools.get_logger(__name__, info=True, warn=True, error=True)
 
 
 class OffersService:
@@ -117,115 +117,43 @@ class OffersService:
         )
 
     @classmethod
-    @TelegramDecorator.log_call()
-    async def chat_activity_msg(cls, message: Message):
-        chat_id = str(message.chat.id)
-        sender_id = str(message.from_user.id) if message.from_user else ""
-        if not chat_id or not sender_id:
-            logger.warning("chat_activity_msg skipped: empty chat_id or sender_id")
-            return
+    def _offer_id_from_callback(cls, callback: CallbackQuery) -> int:
+        return int(callback.data.split("_")[-1])
 
-        logger.info(
-            f"chat_activity_msg received: chat_id={chat_id}, sender_id={sender_id}, "
-            f"message_id={message.message_id}"
-        )
-
-        offer = await WebTools.get_offer_by_chat_id(chat_id=chat_id)
-        if not offer:
-            # Fallback for old offers where chatId was not persisted yet.
-            sender_offers = await WebTools.get_offers_by_id(
-                is_stud=True,
-                chat_id=sender_id,
-                results=["EXPECTATION", "STUDENT_CONFIRMED", "RECRUITER_CONFIRMED"]
-            )
-            sender_active_offers = sender_offers.get("offers", [])
-            if len(sender_active_offers) == 1:
-                offer = sender_active_offers[0]
-                logger.warning(
-                    f"chat_activity_msg fallback offer by sender: chat_id={chat_id}, sender_id={sender_id}, "
-                    f"offer_id={offer.get('id')}"
-                )
-            else:
-                logger.warning(
-                    f"chat_activity_msg no active offer: chat_id={chat_id}, sender_id={sender_id}, "
-                    f"sender_offers={len(sender_active_offers)}"
-                )
-                return
-
+    @classmethod
+    async def _load_offer_with_entities(cls, offer_id: int) -> dict:
+        offer = await WebTools.get_offer(_id=offer_id)
         enriched_offer = await WebTools.enrich_offer(offer=offer)
-        if enriched_offer:
-            offer = enriched_offer
+        return enriched_offer if enriched_offer else offer
 
-        offer_id = offer.get("id")
-        if offer_id is None:
-            logger.error(f"chat_activity_msg invalid offer without id: chat_id={chat_id}")
-            return
-
-        recruiter_chat_id = cls._recruiter_chat_id(offer=offer)
-        student_chat_id = cls._student_chat_id(offer=offer)
-        current_result = cls._result(offer=offer) or "EXPECTATION"
-        offer_student_id = str(offer.get("studentId", "")).strip()
-        offer_recruiter_id = str(offer.get("recruiterId", "")).strip()
-
-        actor_role = ""
-        if sender_id == recruiter_chat_id:
-            actor_role = "recruiter"
-        elif sender_id == student_chat_id:
-            actor_role = "student"
-        else:
-            sync_payload = await WebTools.get_sync(user_id=sender_id)
-            sync_type = str(sync_payload.get("type", "")).strip()
-            sync_profile_id = str(sync_payload.get("id", "")).strip()
-            if sync_type == "re" and sync_profile_id and sync_profile_id == offer_recruiter_id:
-                actor_role = "recruiter"
-                logger.warning(
-                    f"chat_activity_msg role resolved by sync: offer_id={offer_id}, sender_id={sender_id}, "
-                    f"role={actor_role}"
-                )
-            elif sync_type == "st" and sync_profile_id and sync_profile_id == offer_student_id:
-                actor_role = "student"
-                logger.warning(
-                    f"chat_activity_msg role resolved by sync: offer_id={offer_id}, sender_id={sender_id}, "
-                    f"role={actor_role}"
-                )
-
-        if actor_role == "recruiter":
-            if offer.get("hasRecruiterMessage") is True:
-                logger.info(f"chat_activity_msg recruiter flag already true: offer_id={offer_id}")
-                return
-            updated = await WebTools.set_status(
-                _id=offer_id,
-                status=current_result,
-                has_recruiter_message=True,
-                chat_id=chat_id
-            )
-            logger.info(
-                f"chat_activity_msg recruiter update: offer_id={offer_id}, updated={updated}, "
-                f"sender_id={sender_id}"
-            )
-            return
-
-        if actor_role == "student":
-            if offer.get("hasStudentMessage") is True:
-                logger.info(f"chat_activity_msg student flag already true: offer_id={offer_id}")
-                return
-            updated = await WebTools.set_status(
-                _id=offer_id,
-                status=current_result,
-                has_student_message=True,
-                chat_id=chat_id
-            )
-            logger.info(
-                f"chat_activity_msg student update: offer_id={offer_id}, updated={updated}, "
-                f"sender_id={sender_id}"
-            )
-            return
-
-        logger.warning(
-            f"chat_activity_msg sender is not participant: offer_id={offer_id}, sender_id={sender_id}, "
-            f"student_chat_id={student_chat_id}, recruiter_chat_id={recruiter_chat_id}, "
-            f"offer_student_id={offer_student_id}, offer_recruiter_id={offer_recruiter_id}"
+    @classmethod
+    def _wait_other_side_msg(cls, is_stud: bool) -> str:
+        return (
+            OffersLexicon.OFFER_SUCCESS_WAIT_OTHER_SIDE_MSG
+            if is_stud
+            else OffersLexicon.OFFER_SUCCESS_WAIT_OTHER_SIDE_RECRUITER_MSG
         )
+
+    @classmethod
+    async def _ensure_student_actor(cls, callback: CallbackQuery, state: FSMContext) -> bool:
+        chat_id = str(callback.message.chat.id)
+        is_stud = await cls._is_student_user(state=state, chat_id=chat_id)
+        if is_stud:
+            return True
+        await callback.message.answer(
+            text=OffersLexicon.OFFER_RECRUITER_READONLY_MSG,
+            reply_markup=OffersMarkup.back_markup
+        )
+        return False
+
+    @classmethod
+    async def _request_reject_reason(cls, callback: CallbackQuery, state: FSMContext, offer_id: int) -> None:
+        await callback.message.answer(
+            text=OffersLexicon.OFFER_REJECT_REASON_MSG,
+            reply_markup=OffersMarkup.back_markup
+        )
+        await state.set_state(OfferState.REJECT_OFFER_REASON_STATE)
+        await state.update_data(id=offer_id)
 
     @classmethod
     async def _is_student_user(cls, state: FSMContext, chat_id: str) -> bool:
@@ -275,15 +203,11 @@ class OffersService:
     async def offer_btn(cls, callback: CallbackQuery, state: FSMContext):
         await AdminTools.delete_msg(message=callback.message)
 
-        call_data = callback.data.split("_")
-        _id = int(call_data[-1])
+        _id = cls._offer_id_from_callback(callback=callback)
         chat_id = str(callback.message.chat.id)
         is_stud = await cls._is_student_user(state=state, chat_id=chat_id)
 
-        offer = await WebTools.get_offer(_id=_id)
-        enriched_offer = await WebTools.enrich_offer(offer=offer)
-        if enriched_offer:
-            offer = enriched_offer
+        offer = await cls._load_offer_with_entities(offer_id=_id)
 
         company_name = cls._company_name(offer=offer)
         recruiter_name = cls._recruiter_name(offer=offer)
@@ -374,21 +298,14 @@ class OffersService:
     @classmethod
     @TelegramDecorator.log_call()
     async def yes_new_offer_btn(cls, callback: CallbackQuery, state: FSMContext):
-        chat_id = str(callback.message.chat.id)
-        is_stud = await cls._is_student_user(state=state, chat_id=chat_id)
-        if not is_stud:
-            await callback.message.answer(
-                text=OffersLexicon.OFFER_RECRUITER_READONLY_MSG,
-                reply_markup=OffersMarkup.back_markup
-            )
+        if not await cls._ensure_student_actor(callback=callback, state=state):
             return
 
         await AdminTools.edit_reply(message=callback.message)
 
-        call_data = callback.data.split("_")
-        _id = int(call_data[-1])
+        _id = cls._offer_id_from_callback(callback=callback)
 
-        _res = await WebTools.create_chat(_id=_id)
+        _res = await ChatService.create_offer_chat(offer_id=_id)
 
         if not _res:
             await callback.message.answer(
@@ -444,48 +361,26 @@ class OffersService:
     @classmethod
     @TelegramDecorator.log_call()
     async def no_new_offer_btn(cls, callback: CallbackQuery, state: FSMContext):
-        chat_id = str(callback.message.chat.id)
-        is_stud = await cls._is_student_user(state=state, chat_id=chat_id)
-        if not is_stud:
-            await callback.message.answer(
-                text=OffersLexicon.OFFER_RECRUITER_READONLY_MSG,
-                reply_markup=OffersMarkup.back_markup
-            )
+        if not await cls._ensure_student_actor(callback=callback, state=state):
             return
 
-        call_data = callback.data.split("_")
-        _id = int(call_data[-1])
-
-        await callback.message.answer(
-            text=OffersLexicon.OFFER_REJECT_REASON_MSG,
-            reply_markup=OffersMarkup.back_markup
+        await cls._request_reject_reason(
+            callback=callback,
+            state=state,
+            offer_id=cls._offer_id_from_callback(callback=callback)
         )
-
-        await state.set_state(OfferState.REJECT_OFFER_REASON_STATE)
-        await state.update_data(id=_id)
 
     @classmethod
     @TelegramDecorator.log_call()
     async def failure_offer_btn(cls, callback: CallbackQuery, state: FSMContext):
-        chat_id = str(callback.message.chat.id)
-        is_stud = await cls._is_student_user(state=state, chat_id=chat_id)
-        if not is_stud:
-            await callback.message.answer(
-                text=OffersLexicon.OFFER_RECRUITER_READONLY_MSG,
-                reply_markup=OffersMarkup.back_markup
-            )
+        if not await cls._ensure_student_actor(callback=callback, state=state):
             return
 
-        call_data = callback.data.split("_")
-        _id = int(call_data[-1])
-
-        await callback.message.answer(
-            text=OffersLexicon.OFFER_REJECT_REASON_MSG,
-            reply_markup=OffersMarkup.back_markup
+        await cls._request_reject_reason(
+            callback=callback,
+            state=state,
+            offer_id=cls._offer_id_from_callback(callback=callback)
         )
-
-        await state.set_state(OfferState.REJECT_OFFER_REASON_STATE)
-        await state.update_data(id=_id)
 
     @classmethod
     @TelegramDecorator.log_call()
@@ -495,10 +390,7 @@ class OffersService:
 
         await state.clear()
 
-        offer = await WebTools.get_offer(_id=_id)
-        enriched_offer = await WebTools.enrich_offer(offer=offer)
-        if enriched_offer:
-            offer = enriched_offer
+        offer = await cls._load_offer_with_entities(offer_id=_id)
 
         recruiter_chat_id = cls._recruiter_chat_id(offer=offer)
         student_full_name = cls._student_full_name(offer=offer)
@@ -538,15 +430,11 @@ class OffersService:
     async def yes_offer_btn(cls, callback: CallbackQuery, state: FSMContext):
         await AdminTools.edit_reply(message=callback.message)
 
-        call_data = callback.data.split("_")
-        _id = int(call_data[-1])
+        _id = cls._offer_id_from_callback(callback=callback)
         chat_id = str(callback.message.chat.id)
         is_stud = await cls._is_student_user(state=state, chat_id=chat_id)
 
-        offer = await WebTools.get_offer(_id=_id)
-        enriched_offer = await WebTools.enrich_offer(offer=offer)
-        if enriched_offer:
-            offer = enriched_offer
+        offer = await cls._load_offer_with_entities(offer_id=_id)
 
         recruiter_company_name = cls._company_name(offer=offer)
         recruiter_chat_id = cls._recruiter_chat_id(offer=offer)
@@ -565,11 +453,7 @@ class OffersService:
 
         if cls._already_confirmed_by_actor(current_result=current_result, is_student_actor=is_stud):
             await callback.message.answer(
-                text=(
-                    OffersLexicon.OFFER_SUCCESS_WAIT_OTHER_SIDE_MSG
-                    if is_stud
-                    else OffersLexicon.OFFER_SUCCESS_WAIT_OTHER_SIDE_RECRUITER_MSG
-                ),
+                text=cls._wait_other_side_msg(is_stud=is_stud),
                 reply_markup=OffersMarkup.back_markup
             )
             return
@@ -580,11 +464,7 @@ class OffersService:
 
         if next_result != "SUCCESS":
             await callback.message.answer(
-                text=(
-                    OffersLexicon.OFFER_SUCCESS_WAIT_OTHER_SIDE_MSG
-                    if is_stud
-                    else OffersLexicon.OFFER_SUCCESS_WAIT_OTHER_SIDE_RECRUITER_MSG
-                ),
+                text=cls._wait_other_side_msg(is_stud=is_stud),
                 reply_markup=OffersMarkup.back_markup
             )
 

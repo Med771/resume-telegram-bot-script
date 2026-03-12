@@ -13,6 +13,8 @@ logger = LoggerTools.get_logger(__name__, info=True, warn=True, error=True)
 
 
 class ChatService:
+    RULES_SENT_CHAT_IDS: set[str] = set()
+
     @staticmethod
     def _result(offer: dict) -> str:
         return offer.get("result", "") or offer.get("resultEnum", "")
@@ -93,6 +95,14 @@ class ChatService:
             return False
 
     @classmethod
+    async def ensure_chat_rules(cls, chat_id: str) -> None:
+        normalized_chat_id = str(chat_id).strip()
+        if not normalized_chat_id or normalized_chat_id in cls.RULES_SENT_CHAT_IDS:
+            return
+        if await cls.send_chat_rules(chat_id=normalized_chat_id):
+            cls.RULES_SENT_CHAT_IDS.add(normalized_chat_id)
+
+    @classmethod
     async def create_offer_chat(cls, offer_id: int) -> dict:
         payload = await WebTools.create_chat(_id=offer_id)
         if not isinstance(payload, dict):
@@ -100,7 +110,7 @@ class ChatService:
 
         chat_id = str(payload.get("chatId", "") or payload.get("chat_id", "")).strip()
         if chat_id:
-            await cls.send_chat_rules(chat_id=chat_id)
+            await cls.ensure_chat_rules(chat_id=chat_id)
         else:
             logger.warning(f"create_offer_chat created without chat_id: offer_id={offer_id}")
         return payload
@@ -118,6 +128,7 @@ class ChatService:
             f"chat_activity_msg received: chat_id={chat_id}, sender_id={sender_id}, "
             f"message_id={message.message_id}"
         )
+        await cls.ensure_chat_rules(chat_id=chat_id)
 
         offer = await WebTools.get_offer_by_chat_id(chat_id=chat_id)
         if not offer:

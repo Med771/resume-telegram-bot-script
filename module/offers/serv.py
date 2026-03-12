@@ -117,8 +117,18 @@ class OffersService:
         )
 
     @classmethod
-    def _offer_id_from_callback(cls, callback: CallbackQuery) -> int:
-        return int(callback.data.split("_")[-1])
+    async def _ack_callback(cls, callback: CallbackQuery) -> None:
+        try:
+            await callback.answer()
+        except Exception:
+            pass
+
+    @classmethod
+    def _offer_id_from_callback(cls, callback: CallbackQuery) -> int | None:
+        try:
+            return int((callback.data or "").rsplit("_", 1)[-1])
+        except (TypeError, ValueError):
+            return None
 
     @classmethod
     async def _load_offer_with_entities(cls, offer_id: int) -> dict:
@@ -169,6 +179,7 @@ class OffersService:
     @classmethod
     @TelegramDecorator.log_call()
     async def offers_btn(cls, callback: CallbackQuery, state: FSMContext):
+        await cls._ack_callback(callback=callback)
         await AdminTools.delete_msg(message=callback.message)
 
         chat_id = str(callback.message.chat.id)
@@ -201,9 +212,16 @@ class OffersService:
     @classmethod
     @TelegramDecorator.log_call()
     async def offer_btn(cls, callback: CallbackQuery, state: FSMContext):
+        await cls._ack_callback(callback=callback)
         await AdminTools.delete_msg(message=callback.message)
 
         _id = cls._offer_id_from_callback(callback=callback)
+        if _id is None:
+            await callback.message.answer(
+                text=ErrorLexicon.ERROR_RETURN_MENU_MSG,
+                reply_markup=OffersMarkup.back_markup
+            )
+            return
         chat_id = str(callback.message.chat.id)
         is_stud = await cls._is_student_user(state=state, chat_id=chat_id)
 
@@ -298,12 +316,19 @@ class OffersService:
     @classmethod
     @TelegramDecorator.log_call()
     async def yes_new_offer_btn(cls, callback: CallbackQuery, state: FSMContext):
+        await cls._ack_callback(callback=callback)
         if not await cls._ensure_student_actor(callback=callback, state=state):
             return
 
         await AdminTools.edit_reply(message=callback.message)
 
         _id = cls._offer_id_from_callback(callback=callback)
+        if _id is None:
+            await callback.message.answer(
+                text=ErrorLexicon.ERROR_RETURN_MENU_MSG,
+                reply_markup=OffersMarkup.back_markup
+            )
+            return
 
         _res = await ChatService.create_offer_chat(offer_id=_id)
 
@@ -342,7 +367,7 @@ class OffersService:
                 student_full_name=student_full_name,
                 student_speciality=student_speciality,
                 chat_url=url),
-            reply_markup=OffersMarkup.chat_offer(url=url)
+            reply_markup=OffersMarkup.chat_offer(url=url, is_stud=True)
         )
 
         if recruiter_chat_id:
@@ -361,25 +386,43 @@ class OffersService:
     @classmethod
     @TelegramDecorator.log_call()
     async def no_new_offer_btn(cls, callback: CallbackQuery, state: FSMContext):
+        await cls._ack_callback(callback=callback)
         if not await cls._ensure_student_actor(callback=callback, state=state):
+            return
+
+        offer_id = cls._offer_id_from_callback(callback=callback)
+        if offer_id is None:
+            await callback.message.answer(
+                text=ErrorLexicon.ERROR_RETURN_MENU_MSG,
+                reply_markup=OffersMarkup.back_markup
+            )
             return
 
         await cls._request_reject_reason(
             callback=callback,
             state=state,
-            offer_id=cls._offer_id_from_callback(callback=callback)
+            offer_id=offer_id
         )
 
     @classmethod
     @TelegramDecorator.log_call()
     async def failure_offer_btn(cls, callback: CallbackQuery, state: FSMContext):
+        await cls._ack_callback(callback=callback)
         if not await cls._ensure_student_actor(callback=callback, state=state):
+            return
+
+        offer_id = cls._offer_id_from_callback(callback=callback)
+        if offer_id is None:
+            await callback.message.answer(
+                text=ErrorLexicon.ERROR_RETURN_MENU_MSG,
+                reply_markup=OffersMarkup.back_markup
+            )
             return
 
         await cls._request_reject_reason(
             callback=callback,
             state=state,
-            offer_id=cls._offer_id_from_callback(callback=callback)
+            offer_id=offer_id
         )
 
     @classmethod
@@ -428,9 +471,16 @@ class OffersService:
     @classmethod
     @TelegramDecorator.log_call()
     async def yes_offer_btn(cls, callback: CallbackQuery, state: FSMContext):
+        await cls._ack_callback(callback=callback)
         await AdminTools.edit_reply(message=callback.message)
 
         _id = cls._offer_id_from_callback(callback=callback)
+        if _id is None:
+            await callback.message.answer(
+                text=ErrorLexicon.ERROR_RETURN_MENU_MSG,
+                reply_markup=OffersMarkup.back_markup
+            )
+            return
         chat_id = str(callback.message.chat.id)
         is_stud = await cls._is_student_user(state=state, chat_id=chat_id)
 

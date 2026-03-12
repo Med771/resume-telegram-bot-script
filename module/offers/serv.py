@@ -133,8 +133,12 @@ class OffersService:
     @classmethod
     async def _load_offer_with_entities(cls, offer_id: int) -> dict:
         offer = await WebTools.get_offer(_id=offer_id)
+        if not isinstance(offer, dict):
+            return {}
         enriched_offer = await WebTools.enrich_offer(offer=offer)
-        return enriched_offer if enriched_offer else offer
+        if isinstance(enriched_offer, dict) and enriched_offer:
+            return enriched_offer
+        return offer
 
     @classmethod
     def _wait_other_side_msg(cls, is_stud: bool) -> str:
@@ -185,10 +189,11 @@ class OffersService:
         chat_id = str(callback.message.chat.id)
         is_stud = await cls._is_student_user(state=state, chat_id=chat_id)
         data = await WebTools.get_offers_by_id(is_stud=is_stud, chat_id=chat_id)
+        payload = data if isinstance(data, dict) else {"offers": []}
 
         offers = []
 
-        for offer in data.get("offers", []):
+        for offer in payload.get("offers", []):
             offer_id = offer.get("id")
             if offer_id is None:
                 continue
@@ -226,6 +231,12 @@ class OffersService:
         is_stud = await cls._is_student_user(state=state, chat_id=chat_id)
 
         offer = await cls._load_offer_with_entities(offer_id=_id)
+        if not offer:
+            await callback.message.answer(
+                text=ErrorLexicon.ERROR_RETURN_MENU_MSG,
+                reply_markup=OffersMarkup.back_markup
+            )
+            return
 
         company_name = cls._company_name(offer=offer)
         recruiter_name = cls._recruiter_name(offer=offer)
@@ -485,6 +496,12 @@ class OffersService:
         is_stud = await cls._is_student_user(state=state, chat_id=chat_id)
 
         offer = await cls._load_offer_with_entities(offer_id=_id)
+        if not offer:
+            await callback.message.answer(
+                text=ErrorLexicon.ERROR_RETURN_MENU_MSG,
+                reply_markup=OffersMarkup.back_markup
+            )
+            return
 
         recruiter_company_name = cls._company_name(offer=offer)
         recruiter_chat_id = cls._recruiter_chat_id(offer=offer)
